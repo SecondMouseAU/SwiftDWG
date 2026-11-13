@@ -68,13 +68,18 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
 - **Not decoded:** polyface and polygon meshes (skipped as `POLYFACE_MESH`, `POLYGON_MESH`), and
   the attributes of an insert. Other entities SwiftDXF does not model (images, solids, tables) are
   tallied in `skipped` by name, as for a DXF.
-- **An entity that cannot be read** is left out, and counted in `skipped` as `UNREADABLE_<type>`.
-  So is a layer, line type, text style, dimension style or block record, as `UNREADABLE_LAYER`,
-  `UNREADABLE_LTYPE`, `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`;
-  entities on a lost layer read as layer `0`. A control object of one of those tables that cannot
-  be read stops the read with a `DWG.Error`, as every record of its table is reached through it.
-  Two losses are not counted yet: an object whose header cannot be read at all, which has no type
-  to name, and a polyline vertex that cannot be read, which leaves the polyline one point short.
+- **An entity that cannot be read** is left out, and counted among the skipped types as
+  `UNREADABLE_<type>`: in `skipped`, or in the block's `skippedByLayer` for an entity in a block.
+  One whose object cannot be opened, or that the file does not hold, has no type to name and is
+  counted as `UNREADABLE_OBJECT`. A 2D or 3D polyline with a vertex that cannot be read is counted
+  whole as `UNREADABLE_POLYLINE`, since one a point short is a different shape. So is a layer, line
+  type, text style, dimension style or block record, as `UNREADABLE_LAYER`, `UNREADABLE_LTYPE`,
+  `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`; entities on a lost layer
+  read as layer `0`. A control object of one of those tables that cannot be read stops the read
+  with a `DWG.Error`, as every record of its table is reached through it.
+- **Entities after an unreadable one, before R2004.** In those files each entity names the next,
+  so those after one whose data cannot be read are lost with it, and counted as one. No test
+  pins this.
 - **Text in a code page SwiftDWG has no table for.** A file before R2007 names the code page of
   its single-byte text in its header. SwiftDWG decodes the ones in `Internal/CodePage.swift` and
   reads any other, such as the DOS and the double-byte Asian pages, as Windows-1252, so that text

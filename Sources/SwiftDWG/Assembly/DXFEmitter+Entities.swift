@@ -225,6 +225,17 @@ extension DXFEmitter {
     private mutating func writePolyline2D(
         _ polyline: Polyline2DData, common: EntityCommon, space: Space
     ) {
+        let found = vertices(
+            owned: polyline.vertexHandles, first: polyline.firstVertex, last: polyline.lastVertex
+        ) { geometry -> Vertex2DData? in
+            if case .vertex2D(let data) = geometry { return data }
+            return nil
+        }
+        // A polyline with a vertex missing is a different shape: it is counted, not written short.
+        guard let found else {
+            writeBare("UNREADABLE_POLYLINE", handle: common.handle, space: space)
+            return
+        }
         writer.begin("POLYLINE")
         writeCommon(common, space: space)
         writer.group(66, 1)
@@ -236,14 +247,9 @@ extension DXFEmitter {
         if polyline.curveType != 0 { writer.group(75, polyline.curveType) }
         writeExtrusion(polyline.extrusion)
         writeExtendedData(common)
-        for handle in vertexHandles(
-            owned: polyline.vertexHandles, first: polyline.firstVertex, last: polyline.lastVertex)
-        {
-            guard let vertex = try? store.entity(handle),
-                case .vertex2D(let data) = vertex.geometry
-            else { continue }
+        for (vertexCommon, data) in found {
             writer.begin("VERTEX")
-            writeCommon(vertex.common, space: space)
+            writeCommon(vertexCommon, space: space)
             writer.point(10, data.location)
             if data.startWidth != 0 { writer.group(40, data.startWidth) }
             if data.endWidth != 0 { writer.group(41, data.endWidth) }
@@ -258,24 +264,44 @@ extension DXFEmitter {
     private mutating func writePolyline3D(
         _ polyline: Polyline3DData, common: EntityCommon, space: Space
     ) {
+        let found = vertices(
+            owned: polyline.vertexHandles, first: polyline.firstVertex, last: polyline.lastVertex
+        ) { geometry -> Vertex3DData? in
+            if case .vertex3D(let data) = geometry { return data }
+            return nil
+        }
+        guard let found else {
+            writeBare("UNREADABLE_POLYLINE", handle: common.handle, space: space)
+            return
+        }
         writer.begin("POLYLINE")
         writeCommon(common, space: space)
         writer.group(66, 1)
         writer.point(10, DXF.Point(0, 0, 0))
         writer.group(70, polyline.flags)
         writeExtendedData(common)
-        for handle in vertexHandles(
-            owned: polyline.vertexHandles, first: polyline.firstVertex, last: polyline.lastVertex)
-        {
-            guard let vertex = try? store.entity(handle),
-                case .vertex3D(let data) = vertex.geometry
-            else { continue }
+        for (vertexCommon, data) in found {
             writer.begin("VERTEX")
-            writeCommon(vertex.common, space: space)
+            writeCommon(vertexCommon, space: space)
             writer.point(10, data.location)
             writer.group(70, data.flags)
         }
         writeSequenceEnd(polyline.seqend, like: common, space: space)
+    }
+
+    /// The vertices of a polyline, each read and picked out by `pick`, or `nil` if one cannot be
+    /// read or is not the kind a vertex of this polyline is.
+    private func vertices<Vertex>(
+        owned: [UInt64], first: UInt64, last: UInt64, _ pick: (EntityGeometry) -> Vertex?
+    ) -> [(common: EntityCommon, data: Vertex)]? {
+        var out: [(common: EntityCommon, data: Vertex)] = []
+        for handle in vertexHandles(owned: owned, first: first, last: last) {
+            guard let vertex = try? store.entity(handle), let data = pick(vertex.geometry) else {
+                return nil
+            }
+            out.append((vertex.common, data))
+        }
+        return out
     }
 
     /// The vertices of a polyline: listed from R2004, before that the first and the last with each

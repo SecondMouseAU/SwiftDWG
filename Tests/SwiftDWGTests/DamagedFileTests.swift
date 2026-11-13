@@ -43,6 +43,22 @@ struct DamagedFileTests {
             textEncoding: whole.textEncoding)
     }
 
+    /// The store with the size of these objects cut to `size` bytes, so that each opens, with its
+    /// type readable, and runs out of data when it is decoded.
+    private static func store(truncating handles: [UInt64], to size: Int) throws -> ObjectStore {
+        let whole = try intactStore()
+        var objects = whole.objects
+        for handle in handles {
+            // The size leads the object, as a modular short.
+            let offset = try #require(whole.map[handle])
+            objects[offset] = UInt8(size)
+            objects[offset + 1] = 0
+        }
+        return ObjectStore(
+            container: whole.container, classes: whole.classes, map: whole.map, objects: objects,
+            textEncoding: whole.textEncoding)
+    }
+
     private static func dxf(of document: Document) throws -> DXF.Drawing {
         var emitter = DXFEmitter(document)
         return try DXF.read(text: emitter.text(), options: .init())
@@ -74,6 +90,101 @@ struct DamagedFileTests {
         let handle = try #require(intact.header.handles[name])
         #expect(throws: DWG.Error.self) {
             _ = try Document(store: try Self.store(overwriting: [handle]))
+        }
+    }
+
+    /// The entities of a drawing that SwiftDXF models, in model space and in the blocks.
+    private static func entityCount(_ drawing: DXF.Drawing) -> Int {
+        drawing.entities.count + drawing.blocks.reduce(0) { $0 + $1.entities.count }
+    }
+
+    /// How many entities of this skipped type SwiftDXF tallied: in model space, which `skipped`
+    /// holds, and in each block, which keeps its own count by layer.
+    private static func skipped(_ type: String, in drawing: DXF.Drawing) -> Int {
+        drawing.skipped[type, default: 0]
+            + drawing.blocks.reduce(0) { $0 + ($1.skippedByLayer[type]?.values.reduce(0, +) ?? 0) }
+    }
+
+    @Test("an entity whose object cannot be opened, or is not in the file, is counted as an object")
+    func lostObject() throws {
+        let store = try Self.intactStore()
+        let intact = try Document(store: store)
+        let before = Self.entityCount(try Self.dxf(of: intact))
+        let handle = try #require(
+            intact.blocks.flatMap(\.entities).first {
+                if case .line? = (try? store.entity($0))?.geometry { return true }
+                return false
+            })
+
+        for damaged in [try Self.store(without: [handle]), try Self.store(overwriting: [handle])] {
+            let drawing = try Self.dxf(of: try Document(store: damaged))
+            #expect(Self.skipped("UNREADABLE_OBJECT", in: drawing) == 1)
+            #expect(Self.entityCount(drawing) == before - 1)
+        }
+    }
+
+    @Test("a decoded entity that runs out of data is counted by its type")
+    func undecodableEntity() throws {
+        let store = try Self.intactStore()
+        let intact = try Document(store: store)
+        let before = Self.entityCount(try Self.dxf(of: intact))
+        let handle = try #require(
+            intact.blocks.flatMap(\.entities).first {
+                if case .line? = (try? store.entity($0))?.geometry { return true }
+                return false
+            })
+
+        // Five bytes hold the type and not the rest, for the first LINE of this drawing.
+        let drawing = try Self.dxf(
+            of: try Document(store: try Self.store(truncating: [handle], to: 5)))
+        #expect(Self.skipped("UNREADABLE_LINE", in: drawing) == 1)
+        #expect(Self.skipped("UNREADABLE_OBJECT", in: drawing) == 0)
+        #expect(Self.entityCount(drawing) == before - 1)
+    }
+
+    /// How often a record of this type starts in DXF text.
+    private static func records(_ type: String, in text: String) -> Int {
+        text.components(separatedBy: "\n0\n\(type)\n").count - 1
+    }
+
+    @Test("a polyline that has lost a vertex is counted whole, not written short")
+    func lostVertex() throws {
+        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS: skipped without it
+        // R2000 names the first vertex and each vertex the next; R2018 lists them.
+        for name in ["sample_AC1015", "sample_AC1032"] {
+            let bytes = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg")))
+            let whole = try ObjectStore(try Container(bytes))
+            let intact = try Document(store: whole)
+
+            var vertex: UInt64?
+            for handle in intact.blocks.flatMap(\.entities) where vertex == nil {
+                switch (try? whole.entity(handle))?.geometry {
+                case .polyline2D(let polyline)?:
+                    vertex = polyline.vertexHandles.first { $0 != 0 } ?? polyline.firstVertex
+                case .polyline3D(let polyline)?:
+                    vertex = polyline.vertexHandles.first { $0 != 0 } ?? polyline.firstVertex
+                default: break
+                }
+            }
+            let lost = try #require(vertex, "\(name) has a 2D or 3D polyline")
+            #expect(lost != 0, "\(name)")
+
+            var intactEmitter = DXFEmitter(intact)
+            let before = intactEmitter.text()
+            let damaged = ObjectStore(
+                container: whole.container, classes: whole.classes,
+                map: whole.map.filter { $0.key != lost }, objects: whole.objects,
+                textEncoding: whole.textEncoding)
+            var damagedEmitter = DXFEmitter(try Document(store: damaged))
+            let after = damagedEmitter.text()
+
+            #expect(Self.records("UNREADABLE_POLYLINE", in: after) == 1, "\(name)")
+            #expect(
+                Self.records("POLYLINE", in: after) == Self.records("POLYLINE", in: before) - 1,
+                "\(name)")
+            // None of the lost polyline's vertices is written without it.
+            #expect(
+                Self.records("VERTEX", in: after) < Self.records("VERTEX", in: before), "\(name)")
         }
     }
 
