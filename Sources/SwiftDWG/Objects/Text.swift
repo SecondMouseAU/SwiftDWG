@@ -103,7 +103,7 @@ extension DXF.Point {
 }
 
 extension ObjectReader {
-    mutating func readText() throws -> DecodedEntity {
+    mutating func readTextEntity() throws -> DecodedEntity {
         let common = try readEntityCommon()
         return DecodedEntity(common: common, geometry: .text(try readTextFields()))
     }
