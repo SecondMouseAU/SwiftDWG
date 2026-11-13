@@ -22,3 +22,12 @@ timestamp: 2026-11-13
   R2007 files are not read yet.
 - **Errors** (`Errors.swift`): `DWG.Error` (`notADWG`, `unsupportedVersion`, `truncated`,
   `invalid`).
+- **Classes and object map** (`Internal/Classes.swift`, `Internal/ObjectMap.swift`): the file's
+  custom classes by number, and the offset of every object by handle. `ObjectStore` ties them to
+  the objects section and decodes an object on request.
+- **Object reader** (`Objects/ObjectReader.swift`, `Objects/EntityCommon.swift`): an object's three
+  runs of bits (data, strings from R2007, handles), the data every object starts with, and the
+  common part of every entity (layer, colour, line type, owner). `Objects/Geometry.swift` decodes
+  `LINE`, `CIRCLE`, `ARC` and `POINT`.
+- **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
+  AutoCAD's own DXF export, by handle.
