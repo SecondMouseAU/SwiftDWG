@@ -18,6 +18,10 @@ enum Fixtures {
     static var corpus: URL? {
         ProcessInfo.processInfo.environment["DWG_CORPUS"].map { URL(fileURLWithPath: $0) }
     }
+
+    /// The AutoCAD samples of ACadSharp's `samples/` folder that the R2004 and later reader can
+    /// open, each as the DWG and AutoCAD's ASCII DXF export of the same drawing.
+    static let corpusNames = ["sample_AC1018", "sample_AC1024", "sample_AC1027", "sample_AC1032"]
 }
 
 @Suite("Container")
