@@ -35,7 +35,8 @@ not there yet.
 | Version detection (`AC1006` to `AC1032`) | done |
 | Bit-coded values (`BS`, `BL`, `BD`, `DD`, handles, text) | done |
 | File header, section map, decompression (R2004 and later: `AC1018`, `AC1024`, `AC1027`, `AC1032`) | done, checked on an `AC1032` file |
-| Header variables, classes, handle map | planned |
+| Header variables (R2004 and later), checked against AutoCAD's DXF export of the same drawings | done |
+| Classes, handle map | planned |
 | Entities and tables, into `DXF.Drawing` | planned |
 | R2000 (`AC1015`), R2007 (`AC1021`), R12 to R14 (`AC1009` to `AC1014`) | planned, in that order |
 

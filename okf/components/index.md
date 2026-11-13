@@ -20,5 +20,15 @@ timestamp: 2026-11-13
   R2004 or later file. It decrypts the header, reads the page map and the section map, and puts a
   named section back together from its compressed pages (`Container.section(_:)`). R13 to R2000 and
   R2007 files are not read yet.
+- **Header variables** (`Internal/HeaderReader.swift`, `HeaderReader+Dimensions.swift`,
+  `HeaderVariables.swift`, `CodePage.swift`): reads the `AcDb:Header` section into a
+  `HeaderVariables`, with the system variables under the names DXF gives them (`$INSUNITS`,
+  `$EXTMIN`, `$DIMSCALE`) and the handles of the table control objects, the dictionaries and the
+  current styles under ACadSharp's names (`BLOCK_CONTROL_OBJECT`, `CLAYER`, ...). From R2007 the
+  text and the handles are read from their own streams. R2004 to R2018 (`AC1018` to `AC1032`) are
+  checked against AutoCAD's own DXF export: every variable both have is equal, except the few the
+  two saves cannot agree on (the times and the next handle, which a save moves on, and true
+  colours, which DXF writes as the nearest palette index). R13, R14, R2000 and R2007 are ported but
+  have never run on a file, because the container cannot read them yet.
 - **Errors** (`Errors.swift`): `DWG.Error` (`notADWG`, `unsupportedVersion`, `truncated`,
   `invalid`).
