@@ -29,5 +29,12 @@ timestamp: 2026-11-13
   runs of bits (data, strings from R2007, handles), the data every object starts with, and the
   common part of every entity (layer, colour, line type, owner). `Objects/Geometry.swift` decodes
   `LINE`, `CIRCLE`, `ARC` and `POINT`.
+- **TEXT, MTEXT, INSERT, MINSERT** (`Objects/Text.swift`, `Objects/Insert.swift`,
+  `Objects/TextSupport.swift`): `TextData`, `MTextData` and `InsertData` in the file's own terms
+  (radians, OCS, handles for the text style, block record, attributes and SEQEND). ATTRIB and
+  ATTDEF are not decoded; the insert keeps the handles assembly needs. `TextSupport.swift` holds
+  the CMC colour read and the count check. Checked against AutoCAD's DXF in `TextTests.swift` and
+  `InsertTests.swift`, and with constructed objects (`TextSupportTests.swift`) for the R13 to R2000
+  and R2007 layouts the container cannot read yet.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
