@@ -54,8 +54,16 @@ struct Container {
     private var descriptors: [String: Descriptor] = [:]
     private var locators: [Int: Locator] = [:]
 
-    /// The names of the sections an R2004 or later file has.
-    var sectionNames: [String] { descriptors.keys.sorted() }
+    /// The names of the sections the file has.
+    var sectionNames: [String] {
+        switch version {
+        case .ac1012, .ac1014, .ac1015:
+            let named = Self.locatorNumbers.filter { locators[$0.value] != nil }.map(\.key)
+            return (named + ["AcDb:AcDbObjects"]).sorted()
+        default:
+            return descriptors.keys.sorted()
+        }
+    }
 
     init(_ data: [UInt8]) throws {
         guard let code = String(bytes: data.prefix(6), encoding: .ascii), code.hasPrefix("AC"),
@@ -67,10 +75,42 @@ struct Container {
         self.version = version
         self.data = data
         switch version {
+        case .ac1012, .ac1014, .ac1015:
+            try readHeaderAC15()
         case .ac1018, .ac1024, .ac1027, .ac1032:
             try readHeaderAC18()
         default:
             throw DWG.Error.unsupportedVersion(code)
+        }
+    }
+
+    // MARK: R13 to R2000
+
+    /// The section numbers an R13 to R2000 header lists them by.
+    ///
+    /// The objects themselves are not a section but the rest of the file.
+    private static let locatorNumbers: [String: Int] = [
+        "AcDb:Header": 0, "AcDb:Classes": 1, "AcDb:Handles": 2, "AcDb:ObjFreeSpace": 3,
+        "AcDb:Template": 4, "AcDb:AuxHeader": 5,
+    ]
+
+    private mutating func readHeaderAC15() throws {
+        maintenanceVersion = Int(try byte(at: 0x0B))
+        previewAddress = Int(try data.int32(at: 0x0D))
+        codePage = Int(try data.uint16(at: 0x13))
+        // A count of records, each a number, a position and a size, then a CRC and a sentinel.
+        let count = Int(try data.int32(at: 0x15))
+        guard count >= 0, count < 256 else { throw DWG.Error.invalid("\(count) section locators") }
+        var position = 0x19
+        for _ in 0..<count {
+            let number = Int(try byte(at: position))
+            let seeker = Int(try data.int32(at: position + 1))
+            let size = Int(try data.int32(at: position + 5))
+            position += 9
+            guard seeker >= 0, size >= 0, seeker + size <= data.count else {
+                throw DWG.Error.invalid("section \(number) lies outside the file")
+            }
+            locators[number] = Locator(seeker: seeker, size: size)
         }
     }
 
@@ -193,6 +233,13 @@ struct Container {
     /// section of that name.
     func section(_ name: String) throws -> [UInt8]? {
         switch version {
+        case .ac1012, .ac1014, .ac1015:
+            // The objects are addressed by their position in the whole file.
+            if name == "AcDb:AcDbObjects" { return data }
+            guard let number = Self.locatorNumbers[name], let locator = locators[number] else {
+                return nil
+            }
+            return Array(data[locator.seeker..<(locator.seeker + locator.size)])
         case .ac1018, .ac1024, .ac1027, .ac1032:
             guard let descriptor = descriptors[name] else { return nil }
             return try assemble(descriptor)

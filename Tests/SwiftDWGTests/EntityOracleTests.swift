@@ -112,4 +112,62 @@ struct EntityOracleTests {
             #expect(result.dwgOnly.isEmpty && result.dxfOnly.isEmpty, "\(name)")
         }
     }
+
+    @Test("the R2000 sample reads to the entities its DXF has")
+    func corpusR2000() throws {
+        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
+        for name in Fixtures.corpusNamesR2000 {
+            let data = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg")))
+            let store = try ObjectStore(try Container(data))
+            let drawing = try DXF.read(
+                contentsOf: corpus.appendingPathComponent("\(name)_ascii.dxf"))
+            let result = try EntityOracle.compare(store, with: drawing)
+            #expect(result.compared == 154, "\(name)")
+            #expect(result.mismatches.isEmpty, "\(name)")
+            #expect(result.dwgOnly.isEmpty && result.dxfOnly.isEmpty, "\(name)")
+        }
+    }
+
+    @Test("the R14 sample has the same lines, circles, arcs and points as the R2000 DXF")
+    func corpusR14() throws {
+        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
+        // There is no DXF of the R14 file. It is the same drawing as the R2000 one, so the
+        // geometry is compared as a set, since the two saves do not share handles.
+        let data = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("sample_AC1014.dwg")))
+        let store = try ObjectStore(try Container(data))
+        let drawing = try DXF.read(
+            contentsOf: corpus.appendingPathComponent("sample_AC1015_ascii.dxf"))
+        func signature(_ a: [Double]) -> String {
+            a.map { String(format: "%.6f", $0) }.joined(separator: " ")
+        }
+        var ours: [String] = []
+        for handle in store.handles {
+            let decoded: DecodedEntity?
+            do { decoded = try store.entity(handle) } catch is NotDecodedYet { continue }
+            guard let entity = decoded else { continue }
+            switch entity.geometry {
+            case .line(let a, let b, _, _):
+                ours.append("L " + signature([a.x, a.y, a.z, b.x, b.y, b.z]))
+            case .circle(let c, let r, _, _): ours.append("C " + signature([c.x, c.y, c.z, r]))
+            case .arc(let c, let r, _, _, let s, let e):
+                ours.append("A " + signature([c.x, c.y, c.z, r, s * 180 / .pi, e * 180 / .pi]))
+            case .point(let p, _, _, _): ours.append("P " + signature([p.x, p.y, p.z]))
+            default: continue
+            }
+        }
+        var theirs: [String] = []
+        for entity in EntityOracle.entities(of: drawing).values {
+            switch entity {
+            case .line(let a, let b, _, _):
+                theirs.append("L " + signature([a.x, a.y, a.z, b.x, b.y, b.z]))
+            case .circle(let c, let r, _, _): theirs.append("C " + signature([c.x, c.y, c.z, r]))
+            case .arc(let c, let r, let s, let e, _, _):
+                theirs.append("A " + signature([c.x, c.y, c.z, r, s, e]))
+            case .point(let p, _, _): theirs.append("P " + signature([p.x, p.y, p.z]))
+            default: continue
+            }
+        }
+        #expect(ours.count == 154)
+        #expect(ours.sorted() == theirs.sorted())
+    }
 }

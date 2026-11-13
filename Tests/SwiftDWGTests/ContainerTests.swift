@@ -22,6 +22,11 @@ enum Fixtures {
     /// The AutoCAD samples of ACadSharp's `samples/` folder that the R2004 and later reader can
     /// open, each as the DWG and AutoCAD's ASCII DXF export of the same drawing.
     static let corpusNames = ["sample_AC1018", "sample_AC1024", "sample_AC1027", "sample_AC1032"]
+
+    /// The R2000 sample, which the R13 to R2000 container reads.
+    ///
+    /// Its DXF export is AutoCAD's too.
+    static let corpusNamesR2000 = ["sample_AC1015"]
 }
 
 @Suite("Container")
@@ -76,6 +81,24 @@ struct ContainerTests {
         // A DWG header cut short does not trap.
         #expect(throws: DWG.Error.self) {
             _ = try Container([UInt8]("AC1032".utf8) + [UInt8](repeating: 0, count: 20))
+        }
+    }
+
+    @Test("R14 and R2000 files are read: their sections are found, and start with the sentinels")
+    func sectionsOfOlderFiles() throws {
+        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
+        for (name, version) in [("sample_AC1014", DWG.Version.ac1014), ("sample_AC1015", .ac1015)] {
+            let data = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg")))
+            let container = try Container(data)
+            #expect(container.version == version, "\(name)")
+            for section in ["AcDb:Header", "AcDb:Classes", "AcDb:Handles", "AcDb:AcDbObjects"] {
+                #expect(container.sectionNames.contains(section), "\(name) \(section)")
+            }
+            let header = try #require(try container.section("AcDb:Header"))
+            #expect(Array(header.prefix(16)) == Self.headerStart, "\(name)")
+            let classes = try #require(try container.section("AcDb:Classes"))
+            #expect(Array(classes.prefix(16)) == Self.classesStart, "\(name)")
+            #expect(Array(classes.suffix(16)) == Self.classesEnd, "\(name)")
         }
     }
 }

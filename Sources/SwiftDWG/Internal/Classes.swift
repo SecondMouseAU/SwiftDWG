@@ -67,8 +67,13 @@ enum ClassesReader {
         }
 
         var classes: [Int: DWGClass] = [:]
-        // The data is a run of classes until it is used up. Bound it, since the size is the file's.
-        while main.position < end, classes.count < 1 << 16 {
+        // The data is a run of classes until it is used up. Before R2007 the data ends at a byte
+        // boundary and its last byte can hold padding bits, so a partly read byte counts as read.
+        // Bound the run, since the size is the file's.
+        func hasMore() -> Bool {
+            version >= .ac1021 ? main.position < end : (main.position + 7) / 8 < end / 8
+        }
+        while hasMore(), classes.count < 1 << 16 {
             let number = Int(try main.readBitShort())
             let proxyFlags = Int(try main.readBitShort())
             let application = try readText(&main, &text, hasText)
