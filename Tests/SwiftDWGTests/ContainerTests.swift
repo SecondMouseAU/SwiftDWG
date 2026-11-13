@@ -23,10 +23,10 @@ enum Fixtures {
     /// open, each as the DWG and AutoCAD's ASCII DXF export of the same drawing.
     static let corpusNames = ["sample_AC1018", "sample_AC1024", "sample_AC1027", "sample_AC1032"]
 
-    /// The R2000 sample, which the R13 to R2000 container reads.
+    /// The R2000 and R2007 samples, which the other two container layouts read.
     ///
-    /// Its DXF export is AutoCAD's too.
-    static let corpusNamesR2000 = ["sample_AC1015"]
+    /// Their DXF exports are AutoCAD's too.
+    static let corpusNamesOther = ["sample_AC1015", "sample_AC1021"]
 }
 
 @Suite("Container")
@@ -84,10 +84,13 @@ struct ContainerTests {
         }
     }
 
-    @Test("R14 and R2000 files are read: their sections are found, and start with the sentinels")
-    func sectionsOfOlderFiles() throws {
+    @Test("R14, R2000 and R2007 files are read: sections are found, and start with the sentinels")
+    func sectionsOfOtherFiles() throws {
         guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
-        for (name, version) in [("sample_AC1014", DWG.Version.ac1014), ("sample_AC1015", .ac1015)] {
+        let files: [(String, DWG.Version)] = [
+            ("sample_AC1014", .ac1014), ("sample_AC1015", .ac1015), ("sample_AC1021", .ac1021),
+        ]
+        for (name, version) in files {
             let data = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg")))
             let container = try Container(data)
             #expect(container.version == version, "\(name)")
@@ -98,7 +101,9 @@ struct ContainerTests {
             #expect(Array(header.prefix(16)) == Self.headerStart, "\(name)")
             let classes = try #require(try container.section("AcDb:Classes"))
             #expect(Array(classes.prefix(16)) == Self.classesStart, "\(name)")
-            #expect(Array(classes.suffix(16)) == Self.classesEnd, "\(name)")
+            if version < .ac1021 {
+                #expect(Array(classes.suffix(16)) == Self.classesEnd, "\(name)")
+            }
         }
     }
 }

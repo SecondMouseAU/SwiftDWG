@@ -40,7 +40,7 @@ not there yet.
 | Entities: `LINE`, `CIRCLE`, `ARC`, `POINT` | done, equal to AutoCAD's DXF on four releases |
 | Other entities and the tables, into `DXF.Drawing` | planned |
 | R13 to R2000 files (`AC1012`, `AC1014`, `AC1015`): container, classes, object map, base entities | done, checked on `AC1014` and `AC1015` |
-| R2007 (`AC1021`) | planned: its pages use a different compression and Reed-Solomon coding |
+| R2007 (`AC1021`): container with its own compression, classes, object map, base entities | done, checked on `AC1021` |
 | R12 and older (`AC1009` and before) | not planned: neither the specification nor the code this is ported from covers them |
 
 ## How it is checked

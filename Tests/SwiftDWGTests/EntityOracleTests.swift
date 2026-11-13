@@ -113,10 +113,10 @@ struct EntityOracleTests {
         }
     }
 
-    @Test("the R2000 sample reads to the entities its DXF has")
-    func corpusR2000() throws {
+    @Test("the R2000 and R2007 samples read to the entities their DXF has")
+    func corpusOther() throws {
         guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
-        for name in Fixtures.corpusNamesR2000 {
+        for name in Fixtures.corpusNamesOther {
             let data = [UInt8](try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg")))
             let store = try ObjectStore(try Container(data))
             let drawing = try DXF.read(

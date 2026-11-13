@@ -53,6 +53,8 @@ struct Container {
 
     private var descriptors: [String: Descriptor] = [:]
     private var locators: [Int: Locator] = [:]
+    private var sectionsR2007: [String: SectionR2007] = [:]
+    private var pagesR2007: [Int: Locator] = [:]
 
     /// The names of the sections the file has.
     var sectionNames: [String] {
@@ -60,6 +62,8 @@ struct Container {
         case .ac1012, .ac1014, .ac1015:
             let named = Self.locatorNumbers.filter { locators[$0.value] != nil }.map(\.key)
             return (named + ["AcDb:AcDbObjects"]).sorted()
+        case .ac1021:
+            return sectionsR2007.keys.sorted()
         default:
             return descriptors.keys.sorted()
         }
@@ -79,6 +83,8 @@ struct Container {
             try readHeaderAC15()
         case .ac1018, .ac1024, .ac1027, .ac1032:
             try readHeaderAC18()
+        case .ac1021:
+            try readHeaderAC21()
         default:
             throw DWG.Error.unsupportedVersion(code)
         }
@@ -243,6 +249,9 @@ struct Container {
         case .ac1018, .ac1024, .ac1027, .ac1032:
             guard let descriptor = descriptors[name] else { return nil }
             return try assemble(descriptor)
+        case .ac1021:
+            guard let section = sectionsR2007[name] else { return nil }
+            return try assembleR2007(section)
         default:
             throw DWG.Error.unsupportedVersion(version.code)
         }
@@ -282,5 +291,202 @@ struct Container {
     private func byte(at offset: Int) throws -> UInt8 {
         guard offset >= 0, offset < data.count else { throw DWG.Error.truncated("the file header") }
         return data[offset]
+    }
+
+    // MARK: R2007
+
+    /// A section of an R2007 file.
+    ///
+    /// Each page says how large it is stored and decompressed.
+    struct SectionR2007 {
+        var name = ""
+        /// 4 for pages that are Reed-Solomon coded.
+        var encoding: UInt64 = 0
+        var pages: [PageR2007] = []
+    }
+
+    struct PageR2007 {
+        var number = 0
+        var decompressedSize = 0
+        var compressedSize = 0
+        var isEmpty = false
+    }
+
+    /// Where the pages and the sections are described, and how they are coded.
+    private mutating func readHeaderAC21() throws {
+        maintenanceVersion = Int(try byte(at: 0x0B))
+        previewAddress = Int(try data.int32(at: 0x0D))
+        codePage = Int(try data.uint16(at: 0x13))
+
+        // 0x400 bytes at 0x80 hold the first 0x3D8 bytes of data, spread in three interleaved
+        // blocks of 239 with error-correction bytes (which are not used here).
+        guard data.count >= 0x480 else { throw DWG.Error.truncated("the R2007 file header") }
+        let decoded = Self.deinterleave(
+            Array(data[0x80..<0x480]), outputSize: 3 * 239, factor: 3, blockSize: 239)
+        let compressedLength = Int(try decoded.int32(at: 24))
+        guard compressedLength > 0, compressedLength + 32 <= decoded.count else {
+            throw DWG.Error.invalid("R2007 header of \(compressedLength) bytes")
+        }
+        let meta = try LZ77AC21.decompress(
+            decoded, offset: 32, length: compressedLength, outputSize: 0x110)
+
+        let pageMapFactor = try meta.uint64(at: 0x18)
+        let pageMapOffset = try meta.uint64(at: 0x38)
+        let pageMapCompressed = try meta.uint64(at: 0x50)
+        let pageMapSize = try meta.uint64(at: 0x58)
+        let sectionMapID = Int(try meta.uint64(at: 0xC0))
+        let sectionMapCompressed = try meta.uint64(at: 0xB0)
+        let sectionMapSize = try meta.uint64(at: 0xC8)
+        let sectionMapFactor = try meta.uint64(at: 0xD8)
+
+        let pageMap = try pageBufferR2007(
+            offset: pageMapOffset, compressed: pageMapCompressed, size: pageMapSize,
+            factor: pageMapFactor, blockSize: 0xEF)
+        var position = 0
+        var seeker = 0
+        while position + 16 <= pageMap.count {
+            let size = Int(try pageMap.uint64(at: position))
+            let identifier = abs(Int(Int64(bitPattern: try pageMap.uint64(at: position + 8))))
+            position += 16
+            guard size >= 0, size <= 1 << 30 else { throw DWG.Error.invalid("page size \(size)") }
+            pagesR2007[identifier] = Locator(seeker: seeker, size: size)
+            seeker += size
+        }
+
+        guard let sectionMapPage = pagesR2007[sectionMapID] else {
+            throw DWG.Error.invalid("the section map is not in the page map")
+        }
+        let sectionMap = try pageBufferR2007(
+            offset: UInt64(sectionMapPage.seeker), compressed: sectionMapCompressed,
+            size: sectionMapSize, factor: sectionMapFactor, blockSize: 239)
+        try readSectionMapR2007(sectionMap)
+    }
+
+    private mutating func readSectionMapR2007(_ map: [UInt8]) throws {
+        var position = 0
+        while position + 0x40 <= map.count {
+            var section = SectionR2007()
+            let maxPageSize = try map.uint64(at: position + 0x08)
+            section.encoding = try map.uint64(at: position + 0x30)
+            let nameLength = Int(Int64(bitPattern: try map.uint64(at: position + 0x20)))
+            let pageCount = Int(try map.uint64(at: position + 0x38))
+            position += 0x40
+            guard nameLength >= 0, nameLength <= 1 << 12, pageCount >= 0,
+                pageCount <= map.count / 56
+            else { throw DWG.Error.invalid("R2007 section map entry") }
+            if nameLength > 0 {
+                guard position + nameLength <= map.count else {
+                    throw DWG.Error.truncated("an R2007 section name")
+                }
+                let units = stride(from: position, to: position + nameLength - 1, by: 2).map {
+                    UInt16(map[$0]) | UInt16(map[$0 + 1]) << 8
+                }
+                section.name = String(decoding: units, as: UTF16.self)
+                    .replacingOccurrences(of: "\0", with: "")
+                position += nameLength
+            }
+            var covered: UInt64 = 0
+            for _ in 0..<pageCount {
+                let offset = try map.uint64(at: position)
+                var page = PageR2007()
+                page.number = Int(Int64(bitPattern: try map.uint64(at: position + 16)))
+                page.decompressedSize = Int(try map.uint64(at: position + 24))
+                page.compressedSize = Int(try map.uint64(at: position + 32))
+                position += 56
+                guard page.decompressedSize >= 0, page.decompressedSize <= 1 << 28,
+                    page.compressedSize >= 0, page.compressedSize <= 1 << 28
+                else { throw DWG.Error.invalid("R2007 page of a size that is not valid") }
+                if covered < offset {
+                    // A page of zeros that was not written.
+                    section.pages.append(
+                        PageR2007(
+                            decompressedSize: Int(min(offset - covered, 1 << 28)), isEmpty: true))
+                }
+                section.pages.append(page)
+                covered = offset + UInt64(page.decompressedSize)
+            }
+            _ = maxPageSize
+            if nameLength > 0 { sectionsR2007[section.name] = section }
+        }
+    }
+
+    /// Reads a page that holds a map: Reed-Solomon coded, then compressed.
+    private func pageBufferR2007(
+        offset: UInt64, compressed: UInt64, size: UInt64, factor: UInt64, blockSize: Int
+    ) throws -> [UInt8] {
+        let padded = (compressed + 7) & ~7
+        guard padded <= 1 << 28, factor <= 1 << 8, size <= 1 << 28 else {
+            throw DWG.Error.invalid("R2007 map page with a size that is not valid")
+        }
+        let total = Int(padded * factor)
+        let blocks = (total + blockSize - 1) / blockSize
+        let start = 0x480 + Int(min(offset, 1 << 40))
+        let raw = Self.slice(data, from: start, length: blocks * 255)
+        let coded = Self.deinterleave(raw, outputSize: total, factor: blocks, blockSize: blockSize)
+        return try LZ77AC21.decompress(
+            coded, offset: 0, length: Int(compressed), outputSize: Int(size))
+    }
+
+    private func assembleR2007(_ section: SectionR2007) throws -> [UInt8] {
+        var out = [UInt8]()
+        for page in section.pages {
+            if page.isEmpty {
+                out.append(contentsOf: [UInt8](repeating: 0, count: page.decompressedSize))
+                continue
+            }
+            guard let locator = pagesR2007[page.number] else {
+                throw DWG.Error.invalid("page \(page.number) is not in the page map")
+            }
+            var bytes = Self.slice(data, from: 0x480 + locator.seeker, length: locator.size)
+            if section.encoding == 4 {
+                let padded = (page.compressedSize + 7) & ~7
+                let blocks = (padded + 250) / 251
+                bytes = Self.deinterleave(
+                    bytes, outputSize: blocks * 251, factor: blocks, blockSize: 251)
+            }
+            if page.compressedSize != page.decompressedSize {
+                bytes = try LZ77AC21.decompress(
+                    bytes, offset: 0, length: page.compressedSize, outputSize: page.decompressedSize
+                )
+            }
+            guard bytes.count >= page.decompressedSize else {
+                throw DWG.Error.truncated("page \(page.number) of \(section.name)")
+            }
+            out.append(contentsOf: bytes[0..<page.decompressedSize])
+        }
+        return out
+    }
+
+    /// Undoes the interleaving of Reed-Solomon coded data.
+    ///
+    /// Byte `i` of block `n` is at `n + i * factor`. The error-correction bytes are dropped.
+    private static func deinterleave(
+        _ encoded: [UInt8], outputSize: Int, factor: Int, blockSize: Int
+    ) -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: outputSize)
+        var index = 0
+        var length = outputSize
+        for block in 0..<factor where block < encoded.count {
+            let size = min(length, blockSize)
+            length -= size
+            var source = block
+            for _ in 0..<size {
+                if source < encoded.count { out[index] = encoded[source] }
+                index += 1
+                source += factor
+            }
+        }
+        return out
+    }
+
+    /// `length` bytes from `start`, with zeros for any that lie past the end of the data.
+    private static func slice(_ data: [UInt8], from start: Int, length: Int) -> [UInt8] {
+        guard start >= 0, length > 0 else { return [] }
+        let end = min(start + length, data.count)
+        var out = start < end ? Array(data[start..<end]) : []
+        if out.count < length {
+            out.append(contentsOf: [UInt8](repeating: 0, count: length - out.count))
+        }
+        return out
     }
 }
