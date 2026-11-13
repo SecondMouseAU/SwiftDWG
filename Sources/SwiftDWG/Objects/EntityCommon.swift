@@ -39,8 +39,12 @@ struct EntityCommon {
 }
 
 extension ObjectReader {
-    /// Reads the data every entity starts with, which ends where its own geometry begins.
-    mutating func readEntityCommon() throws -> EntityCommon {
+    /// Reads the data every entity starts with, as far as the neighbours in its block's chain.
+    ///
+    /// A walk along a block's chain needs the links and nothing after them, so a field that comes
+    /// later and cannot be read does not break the walk. ``readEntityCommon()`` carries on from
+    /// where this stops.
+    mutating func readEntityCommonThroughLinks() throws -> EntityCommon {
         var common = EntityCommon()
         common.extendedData = try readCommonData()
         common.handle = handle
@@ -72,7 +76,12 @@ extension ObjectReader {
                 common.next = try readOwnHandle()
             }
         }
+        return common
+    }
 
+    /// Reads the data every entity starts with, which ends where its own geometry begins.
+    mutating func readEntityCommon() throws -> EntityCommon {
+        var common = try readEntityCommonThroughLinks()
         var hasBookColor = false
         (common.color, common.transparency, hasBookColor, common.trueColorIndex) =
             try readEntityColor()
