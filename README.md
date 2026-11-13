@@ -77,9 +77,12 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`; entities on a lost layer
   read as layer `0`. A control object of one of those tables that cannot be read stops the read
   with a `DWG.Error`, as every record of its table is reached through it.
-- **Entities after an unreadable one, before R2004.** In those files each entity names the next,
-  so those after one whose data cannot be read are lost with it, and counted as one. No test
-  pins this.
+- **Three or more unreadable entities in one block, before R2004.** In those files each entity
+  names the one before it and the one after it. An entity that cannot be read is counted and the
+  others are kept: the links are followed from both ends of the block, and what lies between two
+  unreadable entities is found by its owner, in handle order, so a block's drawing order can be
+  lost there. An entity whose own header cannot be read, and that lies between two other
+  unreadable ones, names no owner that can be read, so it is neither kept nor counted.
 - **Text in a code page SwiftDWG has no table for.** A file before R2007 names the code page of
   its single-byte text in its header. SwiftDWG decodes the ones in `Internal/CodePage.swift` and
   reads any other, such as the DOS and the double-byte Asian pages, as Windows-1252, so that text

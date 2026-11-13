@@ -4,7 +4,7 @@ title: Components index
 resource: https://github.com/SecondMouseAU/SwiftDWG
 tags: [index]
 description: Public modules and API surfaces exposed by SwiftDWG.
-timestamp: 2026-11-13
+timestamp: 2026-11-14
 ---
 
 # Components
@@ -95,6 +95,19 @@ timestamp: 2026-11-13
   `Document.lostRecords`, and an entity, an object that cannot be opened or a polyline with a
   vertex that cannot be read is written as it is found: each as an `UNREADABLE_<type>` record, so
   SwiftDXF counts it (`Tests/SwiftDWGTests/DamagedFileTests.swift`).
+  - **The entities of a block before R2004** (`Assembly/EntityChain.swift`,
+    `Assembly/EntityChain+Store.swift`): `AC1012` to `AC1015` blocks name their first and last
+    entity and each entity names its neighbours, so `EntityChain.entities` walks the links
+    forward from the first, and back from the last if that does not reach it. It reads each
+    entity only as far as the links (`readEntityCommonThroughLinks`), so a damaged field after
+    them does not break the walk. An entity that cannot be read stays in the list, and is
+    counted. If the two walks do not meet (two or more breaks), the objects of the file that are
+    entities of the block (owner by entity mode: 0 the owner handle, 1 the paper space, 2 the
+    model space) and were not found are put between them, in handle order; an unreadable entity
+    between two other breaks names no owner that can be read, so it is not found. The logic is a
+    pure function over closures, tested in `EntityChainTests` with made-up chains, and in
+    `EntityChainRecoveryTests` on `sample_AC1015` (needs `DWG_CORPUS`). The entity type names the
+    scan and the emitter share are in `Internal/ObjectType+Names.swift`.
 - **Colour and extended data** (`Internal/ColorIndex.swift`, `Internal/ExtendedData.swift`): the
   AutoCAD palette, used for the nearest index of a layer's true colour, and the decoder for the
   extended data an entity carries, which holds a dimension's style overrides.

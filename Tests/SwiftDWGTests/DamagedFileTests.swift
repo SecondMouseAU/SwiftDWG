@@ -22,17 +22,25 @@ struct DamagedFileTests {
 
     /// The store with the objects of these handles taken out, as if the file did not hold them.
     private static func store(without handles: [UInt64]) throws -> ObjectStore {
-        let whole = try intactStore()
-        return ObjectStore(
-            container: whole.container, classes: whole.classes,
-            map: whole.map.filter { !handles.contains($0.key) }, objects: whole.objects,
-            textEncoding: whole.textEncoding)
+        remove(handles, from: try intactStore())
     }
 
     /// The store with the first bytes of these objects overwritten, so they are there but not
     /// readable.
     private static func store(overwriting handles: [UInt64]) throws -> ObjectStore {
-        let whole = try intactStore()
+        try overwrite(handles, in: try intactStore())
+    }
+
+    /// `whole` with the objects of these handles taken out of its map.
+    static func remove(_ handles: [UInt64], from whole: ObjectStore) -> ObjectStore {
+        ObjectStore(
+            container: whole.container, classes: whole.classes,
+            map: whole.map.filter { !handles.contains($0.key) }, objects: whole.objects,
+            textEncoding: whole.textEncoding)
+    }
+
+    /// `whole` with the first bytes of these objects overwritten.
+    static func overwrite(_ handles: [UInt64], in whole: ObjectStore) throws -> ObjectStore {
         var objects = whole.objects
         for handle in handles {
             let offset = try #require(whole.map[handle])
@@ -59,7 +67,7 @@ struct DamagedFileTests {
             textEncoding: whole.textEncoding)
     }
 
-    private static func dxf(of document: Document) throws -> DXF.Drawing {
+    static func dxf(of document: Document) throws -> DXF.Drawing {
         var emitter = DXFEmitter(document)
         return try DXF.read(text: emitter.text(), options: .init())
     }
@@ -94,13 +102,13 @@ struct DamagedFileTests {
     }
 
     /// The entities of a drawing that SwiftDXF models, in model space and in the blocks.
-    private static func entityCount(_ drawing: DXF.Drawing) -> Int {
+    static func entityCount(_ drawing: DXF.Drawing) -> Int {
         drawing.entities.count + drawing.blocks.reduce(0) { $0 + $1.entities.count }
     }
 
     /// How many entities of this skipped type SwiftDXF tallied: in model space, which `skipped`
     /// holds, and in each block, which keeps its own count by layer.
-    private static func skipped(_ type: String, in drawing: DXF.Drawing) -> Int {
+    static func skipped(_ type: String, in drawing: DXF.Drawing) -> Int {
         drawing.skipped[type, default: 0]
             + drawing.blocks.reduce(0) { $0 + ($1.skippedByLayer[type]?.values.reduce(0, +) ?? 0) }
     }

@@ -184,7 +184,7 @@ struct Document {
             if let blockEntity, case .block(let data) = blockEntity.geometry, !data.name.isEmpty {
                 name = data.name
             }
-            let entities = chain(of: record)
+            let entities = chain(of: record, at: handle)
             blocks.append(
                 Block(
                     handle: handle, record: record, name: name, blockEntity: blockEntity,
@@ -195,30 +195,16 @@ struct Document {
 
     /// The entities of a block, in order.
     ///
-    /// From R2004 the record lists them; before, the record names the first and the last and each
-    /// entity names the next.
-    private func chain(of record: BlockHeaderData) -> [UInt64] {
+    /// From R2004 the record lists them. Before, the record names the first and the last and each
+    /// entity names the one before and the one after, which ``EntityChain`` walks, and falls back
+    /// on the owner of each entity when an entity cannot be read.
+    private func chain(of record: BlockHeaderData, at handle: UInt64) -> [UInt64] {
         if version >= .ac1018 { return record.ownedEntities.filter { $0 != 0 } }
-        guard record.firstEntity != 0 else { return [] }
-        var out: [UInt64] = []
-        var seen = Set<UInt64>()
-        var handle = record.firstEntity
-        while handle != 0, seen.insert(handle).inserted, out.count < 1 << 24 {
-            out.append(handle)
-            if handle == record.lastEntity { break }
-            guard var reader = try? store.reader(for: handle),
-                let entity = try? reader.readEntityCommonForChain()
-            else { break }
-            // With the links "assumed", an entity is followed by the next handle.
-            handle = entity.next != 0 ? entity.next : handle + 1
-        }
-        return out
-    }
-}
-
-extension ObjectReader {
-    /// Reads only the data every entity starts with, which is all a chain walk needs.
-    mutating func readEntityCommonForChain() throws -> EntityCommon {
-        try readEntityCommon()
+        return EntityChain.entities(
+            first: record.firstEntity, last: record.lastEntity, record: handle,
+            excluding: [record.blockEntity, record.endBlockEntity],
+            links: { store.chainLinks(of: $0) },
+            owner: { store.block(ofEntity: $0, modelSpace: modelSpace, paperSpace: paperSpace) },
+            candidates: { store.handles })
     }
 }
