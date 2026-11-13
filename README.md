@@ -36,7 +36,7 @@ not there yet.
 | Bit-coded values (`BS`, `BL`, `BD`, `DD`, handles, text) | done |
 | File header, section map, decompression (R2004 and later: `AC1018`, `AC1024`, `AC1027`, `AC1032`) | done, checked on an `AC1032` file |
 | Classes, object map, the object stream and the data every entity starts with | done, checked on `AC1018`, `AC1024`, `AC1027`, `AC1032` |
-| Header variables | in progress |
+| Header variables (R2004 and later), equal to AutoCAD's DXF export of the same drawings | done: see below |
 | Entities: `LINE`, `CIRCLE`, `ARC`, `POINT` | done, equal to AutoCAD's DXF on four releases |
 | Other entities and the tables, into `DXF.Drawing` | planned |
 | R13 to R2000 files (`AC1012`, `AC1014`, `AC1015`): container, classes, object map, base entities | done, checked on `AC1014` and `AC1015` |

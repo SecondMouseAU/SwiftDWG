@@ -22,6 +22,16 @@ timestamp: 2026-11-13
   `AC1015`) have no pages: the header lists where each section is, and the objects are addressed by
   position in the whole file. R2007 files (`AC1021`) use a different
   page layout: Reed-Solomon interleaving and their own LZ77 (`Internal/LZ77AC21.swift`).
+- **Header variables** (`Internal/HeaderReader.swift`, `HeaderReader+Dimensions.swift`,
+  `HeaderVariables.swift`): reads the `AcDb:Header` section into a
+  `HeaderVariables`, with the system variables under the names DXF gives them (`$INSUNITS`,
+  `$EXTMIN`, `$DIMSCALE`) and the handles of the table control objects, the dictionaries and the
+  current styles under ACadSharp's names (`BLOCK_CONTROL_OBJECT`, `CLAYER`, ...). From R2007 the
+  text and the handles are read from their own streams. R2004 to R2018 (`AC1018` to `AC1032`) are
+  checked against AutoCAD's own DXF export: every variable both have is equal, except the few the
+  two saves cannot agree on (the times and the next handle, which a save moves on, and true
+  colours, which DXF writes as the nearest palette index). R13, R14, R2000 and R2007 are ported but
+  have never run on a file, because the container cannot read them yet.
 - **Errors** (`Errors.swift`): `DWG.Error` (`notADWG`, `unsupportedVersion`, `truncated`,
   `invalid`).
 - **Classes and object map** (`Internal/Classes.swift`, `Internal/ObjectMap.swift`): the file's

@@ -12,7 +12,7 @@ struct ObjectStore {
 
     init(_ container: Container) throws {
         self.container = container
-        textEncoding = TextEncodings.encoding(forCodePage: container.codePage)
+        textEncoding = CodePage.encoding(for: container.codePage) ?? .windowsCP1252
         guard let handles = try container.section("AcDb:Handles"),
             let objects = try container.section("AcDb:AcDbObjects"),
             let classes = try container.section("AcDb:Classes")
