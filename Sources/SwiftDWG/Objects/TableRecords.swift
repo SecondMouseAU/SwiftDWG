@@ -100,6 +100,33 @@ enum TableRecord {
     case appID(AppIDData)
     case dictionary(DictionaryData)
     case layout(LayoutData)
+
+    // The data of one kind of record, or `nil` for another kind.
+
+    var asBlockHeader: BlockHeaderData? {
+        if case .blockHeader(let data) = self { return data }
+        return nil
+    }
+
+    var asLayer: LayerData? {
+        if case .layer(let data) = self { return data }
+        return nil
+    }
+
+    var asLineType: LineTypeData? {
+        if case .lineType(let data) = self { return data }
+        return nil
+    }
+
+    var asTextStyle: TextStyleData? {
+        if case .textStyle(let data) = self { return data }
+        return nil
+    }
+
+    var asDimensionStyle: DimensionStyleData? {
+        if case .dimensionStyle(let data) = self { return data }
+        return nil
+    }
 }
 
 extension ObjectReader {

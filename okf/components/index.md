@@ -90,7 +90,10 @@ timestamp: 2026-11-13
   `Assembly/DXFEmitter+Entities.swift`, `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
   `Document`, resolves every handle to the name a DXF uses, writes the DXF text with AutoCAD's own
   group codes, and hands it to SwiftDXF. `DWG.dxfText(data:)` returns that text. The comparison with
-  AutoCAD's DXF is in `Tests/SwiftDWGTests/DrawingOracleTests.swift`.
+  AutoCAD's DXF is in `Tests/SwiftDWGTests/DrawingOracleTests.swift`. A table control object that
+  cannot be read throws; a table record or block that cannot be read is kept in
+  `Document.lostRecords` and written as an `UNREADABLE_<table>` record so SwiftDXF counts it
+  (`Tests/SwiftDWGTests/DamagedFileTests.swift`).
 - **Colour and extended data** (`Internal/ColorIndex.swift`, `Internal/ExtendedData.swift`): the
   AutoCAD palette, used for the nearest index of a layer's true colour, and the decoder for the
   extended data an entity carries, which holds a dimension's style overrides.

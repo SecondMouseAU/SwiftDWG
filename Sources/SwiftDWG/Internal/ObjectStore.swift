@@ -26,6 +26,18 @@ struct ObjectStore {
             textEncoding: textEncoding)
     }
 
+    /// A store over these pieces, so that a test can damage some of them.
+    init(
+        container: Container, classes: [Int: DWGClass], map: [UInt64: Int], objects: [UInt8],
+        textEncoding: String.Encoding
+    ) {
+        self.container = container
+        self.classes = classes
+        self.map = map
+        self.objects = objects
+        self.textEncoding = textEncoding
+    }
+
     /// Every handle in the file, in order.
     var handles: [UInt64] { map.keys.sorted() }
 

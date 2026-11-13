@@ -175,6 +175,11 @@ struct DXFEmitter {
         for block in document.blocks where block.handle == document.paperSpace {
             for handle in block.entities { writeEntity(handle, space: .paper) }
         }
+        // Table records and blocks that could not be read, so that SwiftDXF counts them.
+        for lost in document.lostRecords {
+            writer.begin("UNREADABLE_\(lost.table)")
+            writer.handle(5, lost.handle)
+        }
         writer.endSection()
     }
 

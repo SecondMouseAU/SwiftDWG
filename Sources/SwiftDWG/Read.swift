@@ -13,8 +13,11 @@ extension DWG {
     ///   - options: What SwiftDXF should do with block references and paper space.
     /// - Returns: The drawing.
     /// - Throws: ``DWG/Error`` when the file is not a DWG, is of a release that is not read, or
-    ///   is damaged in its structure. An entity that cannot be read is left out and counted in
-    ///   `skipped`, under its type name with `UNREADABLE_` before it.
+    ///   is damaged in its structure, which includes a control object of the layer, line type,
+    ///   text style, dimension style or block table that cannot be read. An entity that cannot be
+    ///   read is left out and counted in `skipped`, under its type name with `UNREADABLE_` before
+    ///   it, and so is a table record or a block, under `LAYER`, `LTYPE`, `STYLE`, `DIMSTYLE` or
+    ///   `BLOCK_RECORD`.
     public static func read(
         contentsOf url: URL, options: DXF.ReadOptions = .init()
     ) throws -> DXF.Drawing {
