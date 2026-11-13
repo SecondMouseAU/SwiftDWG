@@ -29,5 +29,14 @@ timestamp: 2026-11-13
   runs of bits (data, strings from R2007, handles), the data every object starts with, and the
   common part of every entity (layer, colour, line type, owner). `Objects/Geometry.swift` decodes
   `LINE`, `CIRCLE`, `ARC` and `POINT`.
+- **Table records** (`Objects/TableRecords.swift`, `Objects/Tables*.swift`): the symbol tables and
+  what hangs off them, read by `ObjectStore.tableRecord(_:)`: the control object of each table (its
+  entry handles), block records, layers, line types, text styles, dimension styles (every variable
+  the file stores), application names, dictionaries, layouts with their plot settings, and the
+  `BLOCK` and `ENDBLK` entities. Handles stay numbers; naming them is left to the code that builds
+  the drawing. `Tables*.swift` also holds the colour reader that table entries use.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
+- **Table oracle tests** (`Tests/SwiftDWGTests/TableOracleTests.swift`): the same comparison for
+  the table records, by handle, field by field. Objects that only one of the two files of a sample
+  has are counted, and the entries among them are paired by name.

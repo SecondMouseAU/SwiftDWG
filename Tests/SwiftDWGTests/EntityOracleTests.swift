@@ -49,6 +49,11 @@ enum EntityOracle {
             let decoded: DecodedEntity?
             do { decoded = try store.entity(handle) } catch is NotDecodedYet { continue }
             guard let decoded else { continue }
+            // BLOCK and ENDBLK have no geometry of their own; TableOracleTests compares them.
+            switch decoded.geometry {
+            case .block, .endBlock: continue
+            default: break
+            }
             seen.insert(handle)
             guard let reference = expected[handle] else {
                 result.dwgOnly.append(handle)
