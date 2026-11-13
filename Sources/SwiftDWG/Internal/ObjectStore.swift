@@ -1,3 +1,5 @@
+import Foundation
+
 /// The objects of a DWG, found by handle.
 ///
 /// It holds the pieces every object read needs: the objects section, the map from handle to
