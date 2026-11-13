@@ -86,3 +86,11 @@ timestamp: 2026-11-13
 - **Table oracle tests** (`Tests/SwiftDWGTests/TableOracleTests.swift`): the same comparison for
   the table records, by handle, field by field. Objects that only one of the two files of a sample
   has are counted, and the entries among them are paired by name.
+- **Assembly** (`Assembly/Document.swift`, `DXFEmitter.swift`, `DXFEmitter+Entities.swift`,
+  `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
+  `Document`, resolves every handle to the name a DXF uses, writes the DXF text with AutoCAD's own
+  group codes, and hands it to SwiftDXF. `DWG.dxfText(data:)` returns that text. The comparison with
+  AutoCAD's DXF is in `Tests/SwiftDWGTests/DrawingOracleTests.swift`.
+- **Colour and extended data** (`Internal/ColorIndex.swift`, `Internal/ExtendedData.swift`): the
+  AutoCAD palette, used for the nearest index of a layer's true colour, and the decoder for the
+  extended data an entity carries, which holds a dimension's style overrides.

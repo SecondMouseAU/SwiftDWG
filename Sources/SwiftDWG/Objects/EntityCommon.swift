@@ -24,6 +24,8 @@ struct EntityCommon {
     var previous: UInt64 = 0
     var next: UInt64 = 0
     var color: DWGColor = .byLayer
+    /// The palette index AutoCAD keeps beside a true colour, the nearest it found, or 0.
+    var trueColorIndex = 0
     /// The transparency word as stored, or `nil` when there is none.
     var transparency: Int32?
     var lineTypeScale = 1.0
@@ -72,7 +74,8 @@ extension ObjectReader {
         }
 
         var hasBookColor = false
-        (common.color, common.transparency, hasBookColor) = try readEntityColor()
+        (common.color, common.transparency, hasBookColor, common.trueColorIndex) =
+            try readEntityColor()
         if version >= .ac1018, hasBookColor { _ = try readHandle() }
         common.lineTypeScale = try main.readBitDouble()
 
@@ -100,20 +103,23 @@ extension ObjectReader {
 
     /// Reads an entity colour, and the transparency and book colour that can follow it.
     mutating func readEntityColor() throws -> (
-        color: DWGColor, transparency: Int32?, hasBookColor: Bool
+        color: DWGColor, transparency: Int32?, hasBookColor: Bool, trueColorIndex: Int
     ) {
         guard version >= .ac1018 else {
-            return (Self.indexColor(Int(try main.readBitShort())), nil, false)
+            return (Self.indexColor(Int(try main.readBitShort())), nil, false, 0)
         }
         let word = Int(try main.readBitShort())
-        guard word != 0 else { return (.byBlock, nil, false) }
+        guard word != 0 else { return (.byBlock, nil, false, 0) }
         let flags = word & 0xFF00
         var color: DWGColor
         var hasBook = false
+        var hint = 0
         if flags & 0x4000 != 0 {
-            color = .byBlock
+            // A colour from a colour book: the word keeps the palette index nearest to it.
+            color = word & 0xFFF != 0 ? Self.indexColor(word & 0xFFF) : .byBlock
             hasBook = true
         } else if flags & 0x8000 != 0 {
+            hint = word & 0xFFF
             let rgb = UInt32(bitPattern: try main.readBitLong())
             color = .rgb(
                 red: UInt8(truncatingIfNeeded: rgb >> 16),
@@ -124,7 +130,7 @@ extension ObjectReader {
         }
         var transparency: Int32?
         if flags & 0x2000 != 0 { transparency = try main.readBitLong() }
-        return (color, transparency, hasBook)
+        return (color, transparency, hasBook, hint)
     }
 
     /// A colour index as AutoCAD numbers it: 0 is by block, 256 by layer.
