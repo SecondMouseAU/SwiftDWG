@@ -23,7 +23,10 @@ enum DrawingOracle {
     static func entities(of drawing: DXF.Drawing) -> [String: String] {
         var out: [String: String] = [:]
         func add(_ entities: [DXF.Entity], _ identities: [DXF.Identity]) {
-            guard entities.count == identities.count else { return }
+            guard entities.count == identities.count else {
+                Issue.record("\(entities.count) entities but \(identities.count) identities")
+                return
+            }
             for (entity, identity) in zip(entities, identities) {
                 if let handle = identity.handle { out[handle.uppercased()] = normalised(entity) }
             }
@@ -39,8 +42,12 @@ enum DrawingOracle {
         normalised(String(describing: entity))
     }
 
+    /// The numbers in a description.
+    private static let number = try! NSRegularExpression(
+        pattern: "-?\\d+(?:\\.\\d+)?(?:e-?\\d+)?")
+
     static func normalised(_ text: String) -> String {
-        let pattern = try! NSRegularExpression(pattern: "-?\\d+(?:\\.\\d+)?(?:e-?\\d+)?")
+        let pattern = number
         var out = text
         for match in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text))
             .reversed()

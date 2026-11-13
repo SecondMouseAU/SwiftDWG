@@ -14,7 +14,7 @@ private struct Generator {
         return state
     }
 
-    mutating func below(_ bound: Int) -> Int { Int(next() % UInt64(bound)) }
+    mutating func below(_ bound: Int) -> Int { bound > 0 ? Int(next() % UInt64(bound)) : 0 }
 }
 
 @Suite("Header variables")

@@ -628,11 +628,12 @@ struct TableOracle {
             }
             // The preview: the DXF holds it as hex text in groups 310.
             let preview = record.all(310).joined()
-            let previewBytes = stride(from: 0, to: preview.count, by: 2).compactMap {
-                offset -> UInt8? in
-                let start = preview.index(preview.startIndex, offsetBy: offset)
-                return UInt8(preview[start..<preview.index(start, offsetBy: 2)], radix: 16)
-            }
+            let previewBytes = stride(from: 0, to: preview.count - preview.count % 2, by: 2)
+                .compactMap {
+                    offset -> UInt8? in
+                    let start = preview.index(preview.startIndex, offsetBy: offset)
+                    return UInt8(preview[start..<preview.index(start, offsetBy: 2)], radix: 16)
+                }
             expect(
                 header.preview == previewBytes, "BLOCK_RECORD", handle,
                 "preview \(header.preview.count) bytes")

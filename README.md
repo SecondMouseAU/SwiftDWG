@@ -69,6 +69,12 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   the attributes of an insert. Other entities SwiftDXF does not model (images, solids, tables) are
   tallied in `skipped` by name, as for a DXF.
 - **An entity that cannot be read** is left out, and counted in `skipped` as `UNREADABLE_<type>`.
+  A layer, line type, text style, dimension style or block record that cannot be read is also left
+  out, but nothing counts it: entities on a missing layer read as layer `0`.
+- **Text in a code page SwiftDWG has no table for.** A file before R2007 names the code page of
+  its single-byte text in its header. SwiftDWG decodes the ones in `Internal/CodePage.swift` and
+  reads any other, such as the DOS and the double-byte Asian pages, as Windows-1252, so that text
+  can come out wrong. R2007 and later files store text as UTF-16 and are not affected.
 - **Anonymous block names** keep their DWG numbers; AutoCAD's DXF renumbers them.
 - Performance has not been measured.
 

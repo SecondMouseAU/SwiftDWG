@@ -26,9 +26,11 @@ struct HeaderInput {
             codePage: codePage)
     }
 
-    /// The offset of the first byte of data in the section, after the sentinel, the size, and from
-    /// R2010 the extra four bytes.
-    var dataStart: Int { version >= .ac1024 ? 24 : 20 }
+    /// The offset of the first byte of data in the section, after the sentinel, the size, and the
+    /// extra four bytes that R2010 files of a maintenance release above 3, and R2018 files, have.
+    var dataStart: Int {
+        (version >= .ac1024 && maintenanceVersion > 3) || version >= .ac1032 ? 24 : 20
+    }
 
     /// The data's size in bytes, as the section declares it.
     var dataSize: Int { Int((try? section.int32(at: 16)) ?? 0) }

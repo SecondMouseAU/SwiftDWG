@@ -22,8 +22,8 @@ timestamp: 2026-11-13
   `AC1015`) have no pages: the header lists where each section is, and the objects are addressed by
   position in the whole file. R2007 files (`AC1021`) use a different
   page layout: Reed-Solomon interleaving and their own LZ77 (`Internal/LZ77AC21.swift`).
-- **Header variables** (`Internal/HeaderReader.swift`, `HeaderReader+Dimensions.swift`,
-  `HeaderVariables.swift`, `CodePage.swift`): reads the `AcDb:Header` section into a
+- **Header variables** (`Internal/HeaderReader.swift`, `Internal/HeaderReader+Dimensions.swift`,
+  `Internal/HeaderVariables.swift`, `Internal/CodePage.swift`): reads the `AcDb:Header` section into a
   `HeaderVariables`, with the system variables under the names DXF gives them (`$INSUNITS`,
   `$EXTMIN`, `$DIMSCALE`) and the handles of the table control objects, the dictionaries and the
   current styles under ACadSharp's names (`BLOCK_CONTROL_OBJECT`, `CLAYER`, ...). From R2007 the
@@ -86,8 +86,8 @@ timestamp: 2026-11-13
 - **Table oracle tests** (`Tests/SwiftDWGTests/TableOracleTests.swift`): the same comparison for
   the table records, by handle, field by field. Objects that only one of the two files of a sample
   has are counted, and the entries among them are paired by name.
-- **Assembly** (`Assembly/Document.swift`, `DXFEmitter.swift`, `DXFEmitter+Entities.swift`,
-  `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
+- **Assembly** (`Assembly/Document.swift`, `Assembly/DXFEmitter.swift`,
+  `Assembly/DXFEmitter+Entities.swift`, `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
   `Document`, resolves every handle to the name a DXF uses, writes the DXF text with AutoCAD's own
   group codes, and hands it to SwiftDXF. `DWG.dxfText(data:)` returns that text. The comparison with
   AutoCAD's DXF is in `Tests/SwiftDWGTests/DrawingOracleTests.swift`.
