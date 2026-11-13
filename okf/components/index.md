@@ -31,3 +31,11 @@ timestamp: 2026-11-13
   `LINE`, `CIRCLE`, `ARC` and `POINT`.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
+- **Dimensions, leaders and hatches** (`Objects/Dimensions.swift`, `Objects/Leader.swift`,
+  `Objects/Hatch.swift`, `Objects/DimensionsSupport.swift`): `DIMENSION` of all seven kinds
+  (`DimensionData`: definition points, text, rotations, the measurement, the type code as DXF
+  group 70 composes it, the style and anonymous block handles), `LEADER` and `HATCH` (boundary
+  paths of polylines and of line, arc, ellipse and spline edges, pattern lines, seed points,
+  gradient). Compared with AutoCAD's DXF on R2004 to R2018 in `DimensionsTests`, `LeaderTests` and
+  `HatchTests`; `DimensionsSupportTests` builds objects no sample has. The R2000 and R2007 paths
+  are ported but not checked against a file.

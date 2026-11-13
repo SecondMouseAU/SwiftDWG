@@ -49,6 +49,10 @@ enum EntityOracle {
             let decoded: DecodedEntity?
             do { decoded = try store.entity(handle) } catch is NotDecodedYet { continue }
             guard let decoded else { continue }
+            switch decoded.geometry {
+            case .line, .circle, .arc, .point: break
+            default: continue  // the other entities have oracle tests of their own
+            }
             seen.insert(handle)
             guard let reference = expected[handle] else {
                 result.dwgOnly.append(handle)
