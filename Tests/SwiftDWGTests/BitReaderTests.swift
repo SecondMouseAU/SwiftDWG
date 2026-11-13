@@ -75,6 +75,18 @@ struct BitReaderTests {
         #expect(throws: DWG.Error.self) { _ = try r.readBitLong() }
     }
 
+    @Test("the one-byte codes of BS and BL are unsigned: 0x80 is 128 and 0xFF is 255")
+    func byteCodesAreUnsigned() throws {
+        // The ODA specification says "an unsigned char follows" for code 01 of both, and
+        // ACadSharp reads it as a byte. A sign-extending read would give -128 and -1 here.
+        var short = reader("01 10000000  01 11111111")
+        #expect(try short.readBitShort() == 128)
+        #expect(try short.readBitShort() == 255)
+        var long = reader("01 10000000  01 11111111")
+        #expect(try long.readBitLong() == 128)
+        #expect(try long.readBitLong() == 255)
+    }
+
     @Test("bit long long: a length, then that many bytes")
     func bitLongLong() throws {
         var r = reader("010 00000001 00000010  000")

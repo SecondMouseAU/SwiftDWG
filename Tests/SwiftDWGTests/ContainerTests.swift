@@ -84,6 +84,65 @@ struct ContainerTests {
         }
     }
 
+    @Test("a section map cut off inside a section record throws instead of trapping")
+    func truncatedSectionMap() {
+        // 48 bytes hold the section count and the first fields of one record, but not its name,
+        // which starts at byte 52.
+        var sectionMap = [UInt8](repeating: 0, count: 48)
+        sectionMap[0] = 1
+        #expect(throws: DWG.Error.truncated("a section name")) {
+            _ = try Container(Self.r2004File(sectionMap: sectionMap))
+        }
+    }
+
+    @Test("a section with a negative page size is refused instead of trapping")
+    func negativePageSize() {
+        // One record in full, 96 bytes after the 20 that precede it, with a page size of -1.
+        var sectionMap = [UInt8](repeating: 0, count: 20 + 96)
+        sectionMap[0] = 1
+        sectionMap.replaceSubrange(32..<36, with: [0xFF, 0xFF, 0xFF, 0xFF])
+        #expect(throws: DWG.Error.self) {
+            _ = try Container(Self.r2004File(sectionMap: sectionMap))
+        }
+    }
+
+    /// The smallest file the R2004 reader gets as far as the section map with: the file header, a
+    /// page map that names one page, and that page holding `sectionMap`.
+    ///
+    /// The two system pages are stored as an LZ77 stream of literals only.
+    private static func r2004File(sectionMap: [UInt8]) -> [UInt8] {
+        var file = [UInt8](repeating: 0, count: 0x400)
+        func put(_ bytes: [UInt8], at offset: Int) {
+            file.replaceSubrange(offset..<(offset + bytes.count), with: bytes)
+        }
+        func int32(_ value: Int) -> [UInt8] {
+            (0..<4).map { UInt8(truncatingIfNeeded: value >> (8 * $0)) }
+        }
+        func systemPage(_ content: [UInt8], at address: Int) {
+            put(int32(content.count), at: address + 4)
+            // A first byte above 0x11 is a run of literals, 17 fewer than the byte; 0x11 ends it.
+            put([UInt8(17 + content.count)] + content + [0x11], at: address + 20)
+        }
+
+        put([UInt8]("AC1032".utf8), at: 0)
+        // The header at 0x80 is XORed with a congruential sequence, which the same pass undoes.
+        var header = [UInt8](repeating: 0, count: 0x6C)
+        header.replaceSubrange(0..<11, with: [UInt8]("AcFssFcAJMB".utf8))
+        header.replaceSubrange(0x54..<0x5C, with: int32(0x200) + int32(0))
+        header.replaceSubrange(0x5C..<0x60, with: int32(1))
+        var seed: Int32 = 1
+        put(
+            header.map { byte in
+                seed = seed &* 0x343FD &+ 0x269EC3
+                return byte ^ UInt8(truncatingIfNeeded: seed >> 16)
+            }, at: 0x80)
+
+        // Page 1 starts at 0x100 and is 0x200 long; the page map itself is at 0x300.
+        systemPage(int32(1) + int32(0x200), at: 0x300)
+        systemPage(sectionMap, at: 0x100)
+        return file
+    }
+
     @Test("R14, R2000 and R2007 files are read: sections are found, and start with the sentinels")
     func sectionsOfOtherFiles() throws {
         guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
