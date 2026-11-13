@@ -75,3 +75,14 @@ timestamp: 2026-11-13
   gradient). Compared with AutoCAD's DXF on R2004 to R2018 in `DimensionsTests`, `LeaderTests` and
   `HatchTests`; `DimensionsSupportTests` builds objects no sample has. The R2000 and R2007 paths
   are ported but not checked against a file.
+- **Table records** (`Objects/TableRecords.swift`, `Objects/Tables*.swift`): the symbol tables and
+  what hangs off them, read by `ObjectStore.tableRecord(_:)`: the control object of each table (its
+  entry handles), block records, layers, line types, text styles, dimension styles (every variable
+  the file stores), application names, dictionaries, layouts with their plot settings, and the
+  `BLOCK` and `ENDBLK` entities. Handles stay numbers; naming them is left to the code that builds
+  the drawing. `Tables*.swift` also holds the colour reader that table entries use.
+- **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
+  AutoCAD's own DXF export, by handle.
+- **Table oracle tests** (`Tests/SwiftDWGTests/TableOracleTests.swift`): the same comparison for
+  the table records, by handle, field by field. Objects that only one of the two files of a sample
+  has are counted, and the entries among them are paired by name.

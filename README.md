@@ -37,6 +37,7 @@ not there yet.
 | File header, section map, decompression (R2004 and later: `AC1018`, `AC1024`, `AC1027`, `AC1032`) | done, checked on an `AC1032` file |
 | Classes, object map, the object stream and the data every entity starts with | done, checked on `AC1018`, `AC1024`, `AC1027`, `AC1032` |
 | Header variables (R14 to R2018) | done, checked on `AC1014`, `AC1015`, `AC1018`, `AC1021`, `AC1024`, `AC1027`, `AC1032`; R13 (`AC1012`) has no sample file |
+| Table records (layers, line types, text styles, dimension styles, block records, application names), table control objects, dictionaries, layouts, `BLOCK` and `ENDBLK` | done, equal to AutoCAD's DXF on `AC1018`, `AC1024`, `AC1027`, `AC1032`; the R2000 and R2007 paths are written and not run |
 | Entities: `LINE`, `CIRCLE`, `ARC`, `POINT` | done, equal to AutoCAD's DXF on four releases |
 | Other entities and the tables, into `DXF.Drawing` | planned |
 | R13 to R2000 files (`AC1012`, `AC1014`, `AC1015`): container, classes, object map, base entities | done, checked on `AC1014` and `AC1015` |

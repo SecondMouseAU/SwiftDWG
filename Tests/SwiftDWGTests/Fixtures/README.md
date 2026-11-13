@@ -17,3 +17,9 @@ the same drawing. That is what the larger corpus is compared with.
 decoded entities with (by handle, coordinates exactly). The four larger `sample_AC10xx.dwg` files and
 their `_ascii.dxf` exports, from the same folder, get the same comparison when `DWG_CORPUS` points at
 `samples/`: 154 entities each, with no difference.
+
+`TableOracleTests` compares the table records, control objects, dictionaries and layouts of the same
+files with the same DXF exports, by handle. AutoCAD creates some objects when it saves (round-trip
+dictionaries and the like) and numbers them differently in the DWG and the DXF, so a few objects
+exist under a handle in only one of the two files. The test pins how many, and pairs the table
+entries among them by name.
