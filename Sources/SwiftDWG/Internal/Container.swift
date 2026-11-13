@@ -184,8 +184,12 @@ struct Container {
             var descriptor = Descriptor()
             descriptor.size = try map.uint64(at: position)
             let pageCount = Int(try map.int32(at: position + 8))
-            descriptor.pageSize = UInt64(try map.int32(at: position + 12))
+            // A negative size is clamped to 0, which the check below refuses; converting it
+            // straight to UInt64 would trap.
+            descriptor.pageSize = UInt64(max(0, try map.int32(at: position + 12)))
             descriptor.isCompressed = try map.int32(at: position + 20) == 2
+            // The name starts 32 bytes in; the reads above only reach byte 24.
+            guard position + 32 <= map.count else { throw DWG.Error.truncated("a section name") }
             let nameBytes = map[(position + 32)..<min(position + 96, map.count)]
             descriptor.name = String(decoding: nameBytes.prefix { $0 != 0 }, as: UTF8.self)
             position += 96
