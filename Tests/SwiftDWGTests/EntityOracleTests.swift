@@ -49,6 +49,11 @@ enum EntityOracle {
             let decoded: DecodedEntity?
             do { decoded = try store.entity(handle) } catch is NotDecodedYet { continue }
             guard let decoded else { continue }
+            // The other families are compared in their own tests, from the DXF's raw groups.
+            switch decoded.geometry {
+            case .line, .circle, .arc, .point: break
+            default: continue
+            }
             seen.insert(handle)
             guard let reference = expected[handle] else {
                 result.dwgOnly.append(handle)
