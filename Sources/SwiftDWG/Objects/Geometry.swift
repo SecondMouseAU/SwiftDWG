@@ -14,6 +14,26 @@ enum EntityGeometry {
         startAngle: Double, endAngle: Double)
     case point(
         location: DXF.Point, thickness: Double, extrusion: DXF.Point, rotation: Double)
+    // The families below are decoded in their own files (Text.swift, Insert.swift, Curves.swift,
+    // Polylines.swift, Surfaces.swift, Dimensions.swift, Leader.swift, Hatch.swift).
+    case text(TextData)
+    case mtext(MTextData)
+    case insert(InsertData)
+    case ellipse(EllipseData)
+    case spline(SplineData)
+    case lwpolyline(LWPolylineData)
+    case polyline2D(Polyline2DData)
+    case polyline3D(Polyline3DData)
+    case vertex2D(Vertex2DData)
+    case vertex3D(Vertex3DData)
+    case seqend
+    case block(BlockData)
+    case endBlock
+    case solid(SolidData)
+    case face3D(Face3DData)
+    case dimension(DimensionData)
+    case leader(LeaderData)
+    case hatch(HatchData)
 }
 
 /// An entity read from the file: what every entity has, and its geometry.
@@ -106,6 +126,29 @@ extension ObjectReader {
         case ObjectType.circle: return try readCircle()
         case ObjectType.arc: return try readArc()
         case ObjectType.point: return try readPoint()
+        case ObjectType.text: return try readText()
+        case ObjectType.mtext: return try readMText()
+        case ObjectType.insert: return try readInsert()
+        case ObjectType.minsert: return try readMInsert()
+        case ObjectType.ellipse: return try readEllipse()
+        case ObjectType.spline: return try readSpline()
+        case ObjectType.lwpolyline: return try readLWPolyline()
+        case ObjectType.polyline2D: return try readPolyline2D()
+        case ObjectType.polyline3D: return try readPolyline3D()
+        case ObjectType.vertex2D: return try readVertex2D()
+        case ObjectType.vertex3D: return try readVertex3D()
+        case ObjectType.seqend: return try readSeqend()
+        case ObjectType.block: return try readBlock()
+        case ObjectType.endBlock: return try readEndBlock()
+        case ObjectType.solid, ObjectType.trace: return try readSolid()
+        case ObjectType.face3D: return try readFace3D()
+        case ObjectType.dimensionOrdinate, ObjectType.dimensionLinear,
+            ObjectType.dimensionAligned, ObjectType.dimensionAngular3Point,
+            ObjectType.dimensionAngular2Line, ObjectType.dimensionRadius,
+            ObjectType.dimensionDiameter:
+            return try readDimension()
+        case ObjectType.leader: return try readLeader()
+        case ObjectType.hatch: return try readHatch()
         default: return nil
         }
     }

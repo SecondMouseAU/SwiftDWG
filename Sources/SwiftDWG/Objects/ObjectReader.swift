@@ -5,6 +5,11 @@
 
 import Foundation
 
+/// Thrown by a decoder that has not been written yet, so a caller can skip that type.
+struct NotDecodedYet: Error {
+    let what: String
+}
+
 /// One object cut out of the `AcDb:AcDbObjects` section, with the streams its fields are in.
 ///
 /// An object keeps its numbers, its text and its handle references in three runs of bits: the

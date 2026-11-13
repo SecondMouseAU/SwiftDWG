@@ -46,7 +46,9 @@ enum EntityOracle {
         var result = Result()
         var seen = Set<UInt64>()
         for handle in store.handles {
-            guard let decoded = try store.entity(handle) else { continue }
+            let decoded: DecodedEntity?
+            do { decoded = try store.entity(handle) } catch is NotDecodedYet { continue }
+            guard let decoded else { continue }
             seen.insert(handle)
             guard let reference = expected[handle] else {
                 result.dwgOnly.append(handle)

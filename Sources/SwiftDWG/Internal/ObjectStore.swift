@@ -41,4 +41,11 @@ struct ObjectStore {
         guard var reader = try reader(for: handle) else { return nil }
         return try reader.readEntity()
     }
+
+    /// The table record, control object, dictionary or layout with this handle, or `nil` if there
+    /// is none or its type is not one of those.
+    func tableRecord(_ handle: UInt64) throws -> TableRecord? {
+        guard var reader = try reader(for: handle) else { return nil }
+        return try reader.readTableRecord()
+    }
 }
