@@ -47,10 +47,10 @@ struct DXFWriterTests {
         #expect(DXFWriter.format(.infinity) == "0")
     }
 
-    @Test("a value with a line break stays on one line")
-    func lineBreaks() {
+    @Test("control characters are written as AutoCAD does, so a value stays on one line")
+    func controlCharacters() {
         var w = DXFWriter()
-        w.group(1, "two\nlines")
-        #expect(w.text == "1\ntwo\\Plines\n")
+        w.group(1, "two\nlines\tand ^ caret")
+        #expect(w.text == "1\ntwo^Jlines^Iand ^  caret\n")
     }
 }

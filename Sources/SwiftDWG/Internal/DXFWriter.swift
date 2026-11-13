@@ -65,10 +65,23 @@ struct DXFWriter {
         return "\(value)"
     }
 
-    /// A string that fits on one line, as a group value must.
+    /// A string as a group value, with control characters written the way AutoCAD's DXF writes
+    /// them: as `^` and the character shifted up by 64 (so a line feed is `^J`), and a `^` as
+    /// `^ `.
     private static func clean(_ value: String) -> String {
-        guard value.contains(where: { $0 == "\n" || $0 == "\r" }) else { return value }
-        return value.replacingOccurrences(of: "\r\n", with: "\\P")
-            .replacingOccurrences(of: "\n", with: "\\P").replacingOccurrences(of: "\r", with: "\\P")
+        guard value.unicodeScalars.contains(where: { $0.value < 0x20 || $0 == "^" }) else {
+            return value
+        }
+        var out = ""
+        for scalar in value.unicodeScalars {
+            if scalar == "^" {
+                out += "^ "
+            } else if scalar.value < 0x20, let shifted = Unicode.Scalar(scalar.value + 64) {
+                out += "^" + String(Character(shifted))
+            } else {
+                out.unicodeScalars.append(scalar)
+            }
+        }
+        return out
     }
 }

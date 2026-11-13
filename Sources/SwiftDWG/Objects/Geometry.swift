@@ -126,7 +126,7 @@ extension ObjectReader {
         case ObjectType.circle: return try readCircle()
         case ObjectType.arc: return try readArc()
         case ObjectType.point: return try readPoint()
-        case ObjectType.text: return try readText()
+        case ObjectType.text: return try readTextEntity()
         case ObjectType.mtext: return try readMText()
         case ObjectType.insert: return try readInsert()
         case ObjectType.minsert: return try readMInsert()

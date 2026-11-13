@@ -1,3 +1,5 @@
+import Foundation
+
 /// The objects of a DWG, found by handle.
 ///
 /// It holds the pieces every object read needs: the objects section, the map from handle to
@@ -12,7 +14,7 @@ struct ObjectStore {
 
     init(_ container: Container) throws {
         self.container = container
-        textEncoding = TextEncodings.encoding(forCodePage: container.codePage)
+        textEncoding = CodePage.encoding(for: container.codePage) ?? .windowsCP1252
         guard let handles = try container.section("AcDb:Handles"),
             let objects = try container.section("AcDb:AcDbObjects"),
             let classes = try container.section("AcDb:Classes")
@@ -22,6 +24,18 @@ struct ObjectStore {
         self.classes = try ClassesReader.read(
             classes, version: container.version, maintenanceVersion: container.maintenanceVersion,
             textEncoding: textEncoding)
+    }
+
+    /// A store over these pieces, so that a test can damage some of them.
+    init(
+        container: Container, classes: [Int: DWGClass], map: [UInt64: Int], objects: [UInt8],
+        textEncoding: String.Encoding
+    ) {
+        self.container = container
+        self.classes = classes
+        self.map = map
+        self.objects = objects
+        self.textEncoding = textEncoding
     }
 
     /// Every handle in the file, in order.

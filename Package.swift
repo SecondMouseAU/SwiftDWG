@@ -14,6 +14,9 @@ let package = Package(
         .target(
             name: "SwiftDWG",
             dependencies: [.product(name: "SwiftDXF", package: "SwiftDXF")]),
-        .testTarget(name: "SwiftDWGTests", dependencies: ["SwiftDWG"]),
+        .testTarget(
+            name: "SwiftDWGTests", dependencies: ["SwiftDWG"],
+            // The fixtures are read by path, not as bundle resources.
+            exclude: ["Fixtures"]),
     ]
 )
