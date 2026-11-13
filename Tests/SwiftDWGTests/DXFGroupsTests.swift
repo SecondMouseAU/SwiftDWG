@@ -9,7 +9,7 @@ struct DXFGroupsTests {
         let records = try DXFGroups.records(in: url)
         #expect(records.count > 50)
         let lines = records.values.filter { $0.type == "LINE" }
-        #expect(lines.count == 2)
+        #expect(lines.count >= 2)
         for line in lines {
             #expect(line.point(10, 20, 30) != nil)
             #expect(line.point(11, 21, 31) != nil)

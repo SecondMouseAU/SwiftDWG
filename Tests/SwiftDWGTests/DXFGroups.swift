@@ -27,8 +27,9 @@ struct DXFRecord {
 }
 
 enum DXFGroups {
-    /// Every record outside the `HEADER` section that has a handle (group 5, or 105 for a
-    /// dimension style), by that handle. Records without one are left out.
+    /// Every record outside the `HEADER` section that has a handle, by that handle.
+    ///
+    /// The handle is group 5, or 105 for a dimension style. Records without one are left out.
     static func records(in url: URL) throws -> [UInt64: DXFRecord] {
         let text = try String(contentsOf: url, encoding: .utf8)
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map {
