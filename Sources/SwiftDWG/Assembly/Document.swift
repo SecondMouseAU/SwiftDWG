@@ -56,9 +56,6 @@ struct Document {
         return nil
     }
 
-    /// How many objects could not be read, by what they were.
-    var unreadable: [String: Int] = [:]
-
     init(_ data: [UInt8]) throws {
         let container = try Container(data)
         version = container.version
