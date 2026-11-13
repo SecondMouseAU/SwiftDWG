@@ -34,7 +34,9 @@ struct HeaderVariables: Equatable {
     /// The variables, keyed by the name DXF gives them in its HEADER section, such as `$INSUNITS`,
     /// `$EXTMIN`, `$LTSCALE` and `$DIMSCALE`.
     ///
-    /// A variable the release does not store is absent. The variables that DXF writes as an object
+    /// A variable the release does not store is absent. The creation and last save times are
+    /// `$TDCREATE` and `$TDUPDATE` (local time) in R13 and R14, and `$TDUCREATE` and `$TDUUPDATE`
+    /// (universal time) from R2000. The variables that DXF writes as an object
     /// name (`$CLAYER`, `$TEXTSTYLE`, `$DIMSTYLE` and so on) are here as a `.handle`, and are in
     /// `handles` as well.
     var values: [String: Value] = [:]

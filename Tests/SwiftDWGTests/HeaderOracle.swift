@@ -10,7 +10,7 @@ struct HeaderOracle {
         case matched
         /// The two differ: the DWG value and AutoCAD's, as text.
         case differs(String)
-        /// A bound holds, where the two files were written at different moments and cannot be equal.
+        /// The two agree within an allowance the text states, such as a second between two saves.
         case bounded(String)
         /// The variable could not be compared, and why.
         case notCompared(String)
@@ -22,6 +22,9 @@ struct HeaderOracle {
     let dxf: DXFReference
     /// The release, which a few variables depend on.
     let release: String
+    /// Whether a text that differs from the DXF's only in case counts as agreeing, as for an R14
+    /// file read against the DXF of the same drawing saved as R2000.
+    var ignoringCase = false
 
     /// The DXF table that holds the object a handle variable points at, or `nil` when the variable
     /// is a handle written as one.
@@ -52,7 +55,18 @@ struct HeaderOracle {
     ]
 
     /// The variables that AutoCAD wrote a second or so after the DWG, because saving updates them.
-    private static let updatedBySaving: Set<String> = ["$TDUUPDATE", "$TDINDWG", "$TDUSRTIMER"]
+    private static let updatedBySaving: Set<String> = [
+        "$TDUPDATE", "$TDUUPDATE", "$TDINDWG", "$TDUSRTIMER",
+    ]
+
+    /// The dates and lengths of time.
+    ///
+    /// DXF writes them with 9 or 10 decimals of a day, so they are compared to 1e-9 of a day (about
+    /// 0.1 ms), and not to a relative 1e-9 of a Julian date, which is a matter of minutes.
+    private static let times: Set<String> = [
+        "$TDCREATE", "$TDUCREATE", "$TDUPDATE", "$TDUUPDATE", "$TDINDWG", "$TDUSRTIMER",
+    ]
+    private static let timeTolerance = 1e-9
 
     /// Compares a variable the DWG has with the DXF's.
     func compare(_ name: String, _ value: HeaderVariables.Value) -> Outcome {
@@ -61,8 +75,12 @@ struct HeaderOracle {
         switch value {
         case .int(let read):
             guard let expected = first.integer else { return .differs("DXF \(first.value)") }
-            if name == "$XCLIPFRAME", release == "AC1018", read == 2, expected == 0 {
-                return .notCompared("R2004 DXF has no value 2 for it: the DXF says 0, the DWG 2")
+            if name == "$XCLIPFRAME", ["AC1018", "AC1021"].contains(release), read == 2,
+                expected == 0
+            {
+                return .notCompared(
+                    "the DXF says 0 and the DWG 2; ACadSharp notes that before R2010 the value is "
+                        + "0 or 1 only, which is not confirmed")
             }
             return read == expected ? .matched : .differs("\(read) against \(expected)")
         case .bool(let read):
@@ -72,8 +90,11 @@ struct HeaderOracle {
             return compare(name, double: read, first)
         case .string(let read):
             if name == "$VERSIONGUID" { return compareVersionGUID(read, first.value) }
-            return read == first.value
-                ? .matched : .differs("\"\(read)\" against \"\(first.value)\"")
+            if read == first.value { return .matched }
+            if ignoringCase, read.lowercased() == first.value.lowercased() {
+                return .bounded("equal but for case: \(read) and \(first.value)")
+            }
+            return .differs("\"\(read)\" against \"\(first.value)\"")
         case .point2(let x, let y):
             return comparePoint([x, y], tags)
         case .point3(let x, let y, let z):
@@ -90,12 +111,14 @@ struct HeaderOracle {
 
     private func compare(_ name: String, double read: Double, _ tag: DXFReference.Tag) -> Outcome {
         guard let expected = tag.number else { return .differs("DXF \(tag.value)") }
-        if Self.updatedBySaving.contains(name) {
-            // AutoCAD saved the DXF after the DWG, which moved these on by about a second.
+        if Self.times.contains(name) {
             let delta = expected - read
-            return delta >= 0 && delta <= 5 * Self.second
-                ? .bounded("the DXF is \(String(format: "%.1f", delta / Self.second)) s later")
-                : .differs("\(read) against \(expected)")
+            if abs(delta) <= Self.timeTolerance { return .matched }
+            // AutoCAD saved the DXF after the DWG, which moved these on by about a second.
+            if Self.updatedBySaving.contains(name), delta > 0, delta <= 5 * Self.second {
+                return .bounded("the DXF is \(String(format: "%.1f", delta / Self.second)) s later")
+            }
+            return .differs("\(read) against \(expected)")
         }
         return Self.close(read, expected) ? .matched : .differs("\(read) against \(expected)")
     }

@@ -23,15 +23,23 @@ timestamp: 2026-11-13
   position in the whole file. R2007 files (`AC1021`) use a different
   page layout: Reed-Solomon interleaving and their own LZ77 (`Internal/LZ77AC21.swift`).
 - **Header variables** (`Internal/HeaderReader.swift`, `HeaderReader+Dimensions.swift`,
-  `HeaderVariables.swift`): reads the `AcDb:Header` section into a
+  `HeaderVariables.swift`, `CodePage.swift`): reads the `AcDb:Header` section into a
   `HeaderVariables`, with the system variables under the names DXF gives them (`$INSUNITS`,
   `$EXTMIN`, `$DIMSCALE`) and the handles of the table control objects, the dictionaries and the
   current styles under ACadSharp's names (`BLOCK_CONTROL_OBJECT`, `CLAYER`, ...). From R2007 the
-  text and the handles are read from their own streams. R2004 to R2018 (`AC1018` to `AC1032`) are
-  checked against AutoCAD's own DXF export: every variable both have is equal, except the few the
-  two saves cannot agree on (the times and the next handle, which a save moves on, and true
-  colours, which DXF writes as the nearest palette index). R13, R14, R2000 and R2007 are ported but
-  have never run on a file, because the container cannot read them yet.
+  text and the handles are read from their own streams. What is checked, and against what:
+  - `AC1015`, `AC1018`, `AC1021`, `AC1024`, `AC1027`, `AC1032` against AutoCAD's own DXF export of
+    the same drawing: every variable both have is equal, except the few the two saves cannot agree
+    on (the next handle and the times a save moves on, a GUID that is new at each save, and true
+    colours, which DXF writes as the nearest palette index).
+  - `AC1014` has no DXF export, so it is compared with the `AC1015` one: the drawing's own state is
+    equal, and the differences (a viewport count, a block name's case, the times) are named in
+    the tests. It keeps the local creation and save times, `$TDCREATE` and `$TDUPDATE`, where R2000
+    and later keep universal time.
+  - For every release the handles the header names are looked up in the file's own object stream and
+    must be objects of the right kind, which is the only check of R14's and R2000's two viewport
+    entity header handles, as DXF does not write them.
+  - R13 (`AC1012`) shares the R14 code and has no sample file, so it has never run.
 - **Errors** (`Errors.swift`): `DWG.Error` (`notADWG`, `unsupportedVersion`, `truncated`,
   `invalid`).
 - **Classes and object map** (`Internal/Classes.swift`, `Internal/ObjectMap.swift`): the file's

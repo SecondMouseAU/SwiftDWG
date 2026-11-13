@@ -3,9 +3,9 @@
 // variables is the format's own, from the Open Design Specification for .dwg files. The names are
 // the ones DXF gives its HEADER variables, so that the result can be checked against a DXF export.
 //
-// The R2004 and later paths are checked against AutoCAD's own DXF export of the same drawings. The
-// R13, R14, R2000 and R2007 paths are ported with the same care but have never run on a file,
-// because Container does not read those releases yet.
+// Every release from R14 to R2018 is checked against AutoCAD's own drawings: AC1015 and later
+// against its DXF export of the same drawing, AC1014 against the AC1015 export and the objects in
+// the file. R13 (AC1012) shares the R14 code and has no file to run on.
 
 import Foundation
 
@@ -361,11 +361,11 @@ enum HeaderReader {
 
         /// The dates, the current colour, the next handle and the current styles.
         private mutating func readTimesAndCurrents() throws {
-            // The specification and ACadSharp call these two TDCREATE and TDUPDATE. Against
-            // AutoCAD's DXF they are the universal times (`$TDUCREATE`, `$TDUUPDATE`): DXF has the
-            // local ones as well, which the DWG does not keep.
-            try days("$TDUCREATE")
-            try days("$TDUUPDATE")
+            // The specification and ACadSharp call these two TDCREATE and TDUPDATE. R14 keeps the
+            // local times, as DXF names them. From R2000 they are the universal times, which DXF
+            // calls `$TDUCREATE` and `$TDUUPDATE`, and the local ones are not in the file.
+            try days(r2000Plus ? "$TDUCREATE" : "$TDCREATE")
+            try days(r2000Plus ? "$TDUUPDATE" : "$TDUPDATE")
             if r2004Plus { try skip(longs: 3) }
             try days("$TDINDWG")
             try days("$TDUSRTIMER")

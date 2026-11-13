@@ -17,162 +17,31 @@ private struct Generator {
     mutating func below(_ bound: Int) -> Int { Int(next() % UInt64(bound)) }
 }
 
-/// A header section of a drawing, with what the file header says about it.
-private struct HeaderInput {
-    var version: DWG.Version
-    var maintenanceVersion: Int
-    var codePage: Int
-    var section: [UInt8]
-
-    init(_ bytes: [UInt8]) throws {
-        let container = try Container(bytes)
-        version = container.version
-        maintenanceVersion = container.maintenanceVersion
-        codePage = container.codePage
-        section = try #require(try container.section("AcDb:Header"))
-    }
-
-    func read(_ section: [UInt8]? = nil) throws -> HeaderVariables {
-        try HeaderReader.read(
-            section ?? self.section, version: version, maintenanceVersion: maintenanceVersion,
-            codePage: codePage)
-    }
-
-    /// The offset of the first byte of data in the section, after the sentinel, the size, and from
-    /// R2010 the extra four bytes.
-    var dataStart: Int { version >= .ac1024 ? 24 : 20 }
-
-    /// The data's size in bytes, as the section declares it.
-    var dataSize: Int { Int((try? section.int32(at: 16)) ?? 0) }
-
-    /// A copy cut to `length` bytes, with the sizes in it that count bytes and bits changed to
-    /// agree, so that the cut is found while the data is read and not by a check of the size.
-    func cut(to length: Int) -> [UInt8] {
-        var out = Array(section.prefix(length))
-        let data = Swift.max(length - dataStart, 0)
-        Self.put(Int32(data), into: &out, at: 16)
-        if version >= .ac1021 { Self.put(Int32(data * 8), into: &out, at: dataStart) }
-        return out
-    }
-
-    private static func put(_ value: Int32, into bytes: inout [UInt8], at offset: Int) {
-        guard offset + 4 <= bytes.count else { return }
-        for index in 0..<4 {
-            bytes[offset + index] = UInt8(truncatingIfNeeded: value >> (8 * index))
-        }
-    }
-}
-
 @Suite("Header variables")
 struct HeaderReaderTests {
-    /// The releases the corpus has AutoCAD's DXF export for, and that the container can read.
-    static let corpusReleases = ["AC1018", "AC1024", "AC1027", "AC1032"]
+    /// The releases of the corpus that have a DXF export, and that the container can read.
+    static let corpusReleases = ["AC1015", "AC1018", "AC1021", "AC1024", "AC1027", "AC1032"]
 
-    /// The variables in AutoCAD's DXF that are not in the header section of a DWG: the file header
-    /// and the summary hold some, the rest cannot be known from a DWG.
-    static let notInHeaderSection: Set<String> = [
-        "$ACADVER", "$ACADMAINTVER", "$DWGCODEPAGE", "$LASTSAVEDBY", "$MEASUREMENT",
-        // The DWG keeps the creation and the last save as universal time (`$TDUCREATE` and
-        // `$TDUUPDATE`). DXF adds the offset of the computer that exported it for these two.
-        "$TDCREATE", "$TDUPDATE",
-        // Probably the unnamed bit before `$INTERFERECOLOR`, but only evidence of position.
-        "$REALWORLDSCALE",
-    ]
-
-    private static func input(_ release: String) throws -> (HeaderInput, DXFReference) {
-        let corpus = try #require(Fixtures.corpus)
-        let bytes = [UInt8](
-            try Data(contentsOf: corpus.appendingPathComponent("sample_\(release).dwg")))
-        let dxf = try DXFReference(
-            contentsOf: corpus.appendingPathComponent("sample_\(release)_ascii.dxf"))
-        return (try HeaderInput(bytes), dxf)
-    }
-
-    // MARK: Against AutoCAD
-
-    @Test(
-        "every variable equals AutoCAD's own DXF export of the drawing",
-        .enabled(if: Fixtures.corpus != nil), arguments: corpusReleases)
-    func variablesMatchDXF(release: String) throws {
-        let (input, dxf) = try Self.input(release)
-        let header = try input.read()
-        let oracle = HeaderOracle(dxf: dxf, release: release)
-        #expect(dxf.header["$ACADVER"]?.first?.value == release)
-
-        var matched = 0
-        var bounded = [String: String]()
-        var notCompared = [String: String]()
-        for (name, value) in header.values where dxf.header[name] != nil {
-            switch oracle.compare(name, value) {
-            case .matched: matched += 1
-            case .bounded(let why): bounded[name] = why
-            case .notCompared(let why): notCompared[name] = why
-            case .differs(let how): Issue.record("\(release) \(name): \(how)")
-            }
-        }
-        let dxfOnly = Set(dxf.header.keys).subtracting(header.values.keys)
-        #expect(dxfOnly.subtracting(Self.notInHeaderSection).isEmpty, "\(release): \(dxfOnly)")
-        let dwgOnly = Set(header.values.keys).subtracting(dxf.header.keys)
-
-        var pointersMatched = 0
-        var pointersNotCompared = [String: String]()
-        let pointers = header.handles.filter { HeaderReader.Parser.variableNames[$0.key] == nil }
-        for (name, handle) in pointers {
-            switch oracle.compare(pointer: name, handle) {
-            case .matched: pointersMatched += 1
-            case .notCompared(let why): pointersNotCompared[name] = why
-            case .bounded, .differs: Issue.record("\(release) \(name): \(handle) is not in the DXF")
-            }
-        }
-
-        let compared = matched + bounded.count + notCompared.count
-        print(
-            "header \(release): \(matched) of \(compared) variables equal AutoCAD's, "
-                + "\(bounded.count) bounded, \(notCompared.count) not compared; "
-                + "\(pointersMatched) of \(pointers.count) other handles equal, "
-                + "DXF only: \(dxfOnly.sorted()), DWG only: \(dwgOnly.count)")
-        print("  bounded: \(bounded.sorted { $0.key < $1.key })")
-        print("  not compared: \(notCompared.sorted { $0.key < $1.key })")
-        print("  handles not compared: \(pointersNotCompared.sorted { $0.key < $1.key })")
-        print("  DWG only: \(dwgOnly.sorted())")
-
-        #expect(matched >= 150, "\(release): only \(matched) variables equal")
-        #expect(pointersMatched >= 20)
-        // What cannot be compared is known, and listed here so that a new gap shows.
-        let expectedNotCompared: Set<String> = ["$CECOLOR", "$VERSIONGUID", "$XCLIPFRAME"]
-        #expect(Set(notCompared.keys).isSubset(of: expectedNotCompared), "\(notCompared)")
-        #expect(Set(bounded.keys) == ["$HANDSEED", "$TDUUPDATE", "$TDINDWG", "$TDUSRTIMER"])
-    }
-
-    @Test(
-        "the visual style dictionary keeps its handle, and R2013's extra handle is read after it",
-        .enabled(if: Fixtures.corpus != nil), arguments: ["AC1027", "AC1032"])
-    func visualStyleDictionaryAndTheExtraHandle(release: String) throws {
-        let (input, dxf) = try Self.input(release)
-        let header = try input.read()
-        // ACadSharp stores both over the same name, so what it keeps is the second, which is null
-        // in these drawings, and the dictionary's handle is lost.
-        #expect(header.handles["UNKNOWN_R2013"] != nil)
-        #expect(header.handles["DICTIONARY_VISUALSTYLE"] == dxf.rootEntries["ACAD_VISUALSTYLE"])
-        #expect(header.handles["DICTIONARY_VISUALSTYLE"] != 0)
-    }
+    /// Every release of the corpus that has a header to read, which adds AC1014 (no DXF export).
+    static let readableReleases = ["AC1014"] + corpusReleases
 
     @Test(
         "text is decoded from the string stream of R2007 and later, and the single-byte text before",
         .enabled(if: Fixtures.corpus != nil), arguments: corpusReleases)
     func textComesBack(release: String) throws {
-        let (input, dxf) = try Self.input(release)
+        let (input, dxf) = try HeaderInput.corpus(release)
         let header = try input.read()
         #expect(header.string("$MENU") == ".")
-        #expect(header.string("$FINGERPRINTGUID") == dxf.header["$FINGERPRINTGUID"]?.first?.value)
+        #expect(
+            header.string("$FINGERPRINTGUID") == dxf?.header["$FINGERPRINTGUID"]?.first?.value)
         #expect(header.string("$DIMPOST") == "")
     }
 
     @Test(
         "the header is cut short at every length and never trapped on",
-        .enabled(if: Fixtures.corpus != nil), arguments: corpusReleases)
+        .enabled(if: Fixtures.corpus != nil), arguments: readableReleases)
     func truncatedCorpusHeaders(release: String) throws {
-        let (input, _) = try Self.input(release)
+        let (input, _) = try HeaderInput.corpus(release, withDXF: false)
         try expectEveryCutThrows(input)
     }
 
@@ -256,7 +125,7 @@ struct HeaderReaderTests {
         }
     }
 
-    @Test("the releases before R2004 and R2007's own, which no file reaches yet, do not trap")
+    @Test("random sections read as each release from R13 are read or refused, and never trapped on")
     func olderReleasesDoNotTrap() {
         var random = Generator(state: 0xD1B5_4A32_D192_ED03)
         for version in [DWG.Version.ac1012, .ac1014, .ac1015, .ac1018, .ac1021, .ac1024] {
