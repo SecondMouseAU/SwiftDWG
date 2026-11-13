@@ -33,3 +33,6 @@ timestamp: 2026-11-13
   `LINE`, `CIRCLE`, `ARC` and `POINT`.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
+- **DXF writer** (`Internal/DXFWriter.swift`): writes group codes and values as ASCII DXF. A drawing
+  read from a DWG is handed to SwiftDXF as DXF text, so that it goes through the same code as one
+  that came from a DXF (extrusions, block references, paper space, identities).
