@@ -190,7 +190,7 @@ struct DXFEmitter {
             if let entity = try store.entity(handle) {
                 write(entity, space: space)
             } else {
-                try writeUndecoded(handle, space: space)
+                writeUndecoded(handle, space: space)
             }
         } catch is NotDecodedYet {
             writeUndecoded(handle, space: space)
