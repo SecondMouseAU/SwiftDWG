@@ -1,0 +1,41 @@
+name: tests
+
+# `swift build` and `swift test` are separate steps so a compile failure and a test failure are
+# distinguishable at a glance. Blocking: a red here is meant to stop a merge.
+#
+# Same shape as the sibling packages (SwiftDXF, SwiftJWW). Tests that read third-party drawings are
+# gated on DWG_CORPUS and skip here; the drawings committed under Tests/ run.
+
+on:
+  push:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Package.*'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Package.*'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: swift build
+        run: swift build
+
+      - name: swift test
+        run: swift test

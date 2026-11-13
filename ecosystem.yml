@@ -1,0 +1,10 @@
+okf_version: 1
+repo: SwiftDWG
+cluster: kernel
+visibility: public
+status: active
+language: Swift
+summary: Native-Swift reader for DWG (AutoCAD's native binary drawing format) into the SwiftDXF drawing model; depends only on SwiftDXF.
+products: []
+depends_on: [SwiftDXF]
+maintainer: gsdali

@@ -1,0 +1,43 @@
+name: code-style
+
+# The ecosystem's code-style policy (okf/policies/code-style.md), as in SwiftDXF. swift-format and
+# SwiftLint are blocking; the comment-ratio check is report-only and always exits 0.
+
+on:
+  push:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - '.swift-format'
+      - '.swiftlint.yml'
+      - 'Scripts/comment-ratio-check.sh'
+      - '.github/workflows/code-style.yml'
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - '.swift-format'
+      - '.swiftlint.yml'
+      - 'Scripts/comment-ratio-check.sh'
+      - '.github/workflows/code-style.yml'
+  workflow_dispatch:
+
+jobs:
+  code-style:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install swift-format and SwiftLint
+        run: brew install swift-format swiftlint
+
+      - name: swift-format lint --strict
+        run: |
+          find Sources Tests -name '*.swift' -print0 \
+            | xargs -0 swift-format lint --strict --configuration .swift-format
+
+      - name: swiftlint lint --strict
+        run: swiftlint lint --strict --config .swiftlint.yml
+
+      - name: Comment:code ratio (report-only, never fails)
+        run: Scripts/comment-ratio-check.sh
