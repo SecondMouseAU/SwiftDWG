@@ -56,6 +56,12 @@ timestamp: 2026-11-13
   the CMC colour read and the count check. Checked against AutoCAD's DXF in `TextTests.swift` and
   `InsertTests.swift`, and with constructed objects (`TextSupportTests.swift`) for the R13 to R2000
   and R2007 layouts the container cannot read yet.
+- **Curves, polylines and surfaces** (`Objects/Curves.swift`, `Objects/Polylines.swift`,
+  `Objects/Surfaces.swift`, `Objects/CurvesSupport.swift`): `ELLIPSE`, `SPLINE`, `LWPOLYLINE`, 2D
+  and 3D `POLYLINE` with their `VERTEX` and `SEQEND`, `SOLID`, `TRACE` and `3DFACE`, in the file's
+  own terms. A polyline carries the handles of its vertices and its `SEQEND`, for assembly. Compared
+  with AutoCAD's DXF in `CurvesTests`, `PolylinesTests` and `SurfacesTests`; polyface and mesh
+  polylines are not decoded yet.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
 - **DXF writer** (`Internal/DXFWriter.swift`): writes group codes and values as ASCII DXF. A drawing
