@@ -22,6 +22,10 @@ timestamp: 2026-11-14
   `AC1015`) have no pages: the header lists where each section is, and the objects are addressed by
   position in the whole file. R2007 files (`AC1021`) use a different
   page layout: Reed-Solomon interleaving and their own LZ77 (`Internal/LZ77AC21.swift`).
+  A value the file declares is checked before it is used: 64-bit addresses, sizes and counts go
+  through `uint64AsInt` (refused above 2^62, since `Int(_:)` traps there), a page starts inside its
+  section, and the pages of all sections together are limited, so that a corrupt file ends in a
+  `DWG.Error` and not in a trap or in memory without end (`ContainerTests`, `CorruptInputTests`).
 - **Header variables** (`Internal/HeaderReader.swift`, `Internal/HeaderReader+Dimensions.swift`,
   `Internal/HeaderVariables.swift`, `Internal/CodePage.swift`): reads the `AcDb:Header` section into a
   `HeaderVariables`, with the system variables under the names DXF gives them (`$INSUNITS`,

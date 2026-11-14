@@ -5,10 +5,9 @@ model as [SwiftDXF](https://github.com/SecondMouseAU/SwiftDXF): entities with la
 identity for each (its handle), blocks and tables. No binary, no subprocess, no C or Rust
 dependency, so it builds wherever Swift does.
 
-> **Status: working, not released.** `DWG.read` returns the drawing for R2000 to R2018 files and
+> **Status: 0.1.0, the first release.** `DWG.read` returns the drawing for R2000 to R2018 files and
 > matches AutoCAD's own DXF export of the same drawings on the six releases that have a sample.
-> There is no tagged release yet, and the [limits](#limits) below are real. Try it on your own
-> files before relying on it.
+> The [limits](#limits) below are real. Try it on your own files before relying on it.
 
 ## Why
 
@@ -16,6 +15,20 @@ Reading a DWG today means a converter program or a commercial SDK. When this pac
 a search found no Swift package that reads DWG under a permissive licence. SwiftDXF and SwiftJWW
 read their formats in plain Swift, and DWG is the format neither can reach. SwiftDWG closes that
 gap, with the same shape: one import, one model.
+
+## Install
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/SecondMouseAU/SwiftDWG.git", from: "0.1.0")
+],
+targets: [
+    .target(name: "YourTarget", dependencies: [.product(name: "SwiftDWG", package: "SwiftDWG")])
+]
+```
+
+SwiftDWG depends on [SwiftDXF](https://github.com/SecondMouseAU/SwiftDXF) 0.4.0 or later, whose
+drawing model it returns, and on nothing else.
 
 ## Use
 
@@ -77,6 +90,12 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`; entities on a lost layer
   read as layer `0`. A control object of one of those tables that cannot be read stops the read
   with a `DWG.Error`, as every record of its table is reached through it.
+- **A corrupt file** ends in a `DWG.Error`, or in a drawing that counts what it lost; it is not
+  meant to stop the process with a trap or to never return, and memory is bounded by the sizes the
+  file declares. That is checked by inverting single bytes: in the committed drawings, every byte
+  of the file header and one in 1,009 of the rest, and on a developer machine in the AutoCAD
+  samples, the first 1,280 bytes and some 250 more of each. It is not proved for every byte of
+  every file, so a file found to trap or hang is a bug to report.
 - **Three or more unreadable entities in one block, before R2004.** In those files each entity
   names the one before it and the one after it. An entity that cannot be read is counted and the
   others are kept: the links are followed from both ends of the block, and what lies between two

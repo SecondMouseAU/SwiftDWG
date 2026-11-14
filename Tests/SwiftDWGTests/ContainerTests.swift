@@ -106,11 +106,52 @@ struct ContainerTests {
         }
     }
 
+    /// A section map with one section of `size` bytes in pages of `pageSize`, and `pages` records
+    /// for pages, each with a page number and the offset it starts at.
+    private static func sectionMap(size: UInt64, pageSize: Int32, pages: [UInt64]) -> [UInt8] {
+        func bytes<T: FixedWidthInteger>(_ value: T) -> [UInt8] {
+            (0..<(T.bitWidth / 8)).map { UInt8(truncatingIfNeeded: value >> (8 * $0)) }
+        }
+        var map = [UInt8](repeating: 0, count: 20 + 96)
+        map.replaceSubrange(0..<4, with: bytes(Int32(1)))
+        map.replaceSubrange(20..<28, with: bytes(size))
+        map.replaceSubrange(28..<32, with: bytes(Int32(pages.count)))
+        map.replaceSubrange(32..<36, with: bytes(pageSize))
+        map.replaceSubrange(52..<53, with: [UInt8(ascii: "S")])
+        for offset in pages {
+            map += bytes(Int32(1)) + bytes(Int32(0)) + bytes(offset)
+        }
+        return map
+    }
+
+    @Test(
+        "a page that starts far past the end of its section is refused, and does not fill the gap",
+        .timeLimit(.minutes(1)))
+    func pageOffsetPastTheSection() {
+        // Before it was bounded, the gap before this page was filled one page at a time: some
+        // 4.7 billion of them.
+        let map = Self.sectionMap(size: 0x7400, pageSize: 0x7400, pages: [0x7FFF_FFFF_FFFF])
+        #expect(throws: DWG.Error.invalid("a page of section S is past its end")) {
+            _ = try Container(Self.r2004File(sectionMap: map))
+        }
+    }
+
+    @Test(
+        "a section of more pages than the limit is refused, so a tiny page size cannot take the memory",
+        .timeLimit(.minutes(1)))
+    func tooManyPages() {
+        // 2 GiB in pages of one byte would be two billion pages.
+        let map = Self.sectionMap(size: 1 << 31, pageSize: 1, pages: [])
+        #expect(throws: DWG.Error.invalid("section S has too many pages")) {
+            _ = try Container(Self.r2004File(sectionMap: map))
+        }
+    }
+
     /// The smallest file the R2004 reader gets as far as the section map with: the file header, a
     /// page map that names one page, and that page holding `sectionMap`.
     ///
     /// The two system pages are stored as an LZ77 stream of literals only.
-    private static func r2004File(sectionMap: [UInt8]) -> [UInt8] {
+    static func r2004File(sectionMap: [UInt8]) -> [UInt8] {
         var file = [UInt8](repeating: 0, count: 0x400)
         func put(_ bytes: [UInt8], at offset: Int) {
             file.replaceSubrange(offset..<(offset + bytes.count), with: bytes)
