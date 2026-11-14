@@ -5,10 +5,9 @@ model as [SwiftDXF](https://github.com/SecondMouseAU/SwiftDXF): entities with la
 identity for each (its handle), blocks and tables. No binary, no subprocess, no C or Rust
 dependency, so it builds wherever Swift does.
 
-> **Status: working, not released.** `DWG.read` returns the drawing for R2000 to R2018 files and
+> **Status: 0.1.0, the first release.** `DWG.read` returns the drawing for R2000 to R2018 files and
 > matches AutoCAD's own DXF export of the same drawings on the six releases that have a sample.
-> There is no tagged release yet, and the [limits](#limits) below are real. Try it on your own
-> files before relying on it.
+> The [limits](#limits) below are real. Try it on your own files before relying on it.
 
 ## Why
 
@@ -16,6 +15,20 @@ Reading a DWG today means a converter program or a commercial SDK. When this pac
 a search found no Swift package that reads DWG under a permissive licence. SwiftDXF and SwiftJWW
 read their formats in plain Swift, and DWG is the format neither can reach. SwiftDWG closes that
 gap, with the same shape: one import, one model.
+
+## Install
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/SecondMouseAU/SwiftDWG.git", from: "0.1.0")
+],
+targets: [
+    .target(name: "YourTarget", dependencies: [.product(name: "SwiftDWG", package: "SwiftDWG")])
+]
+```
+
+SwiftDWG depends on [SwiftDXF](https://github.com/SecondMouseAU/SwiftDXF) 0.4.0 or later, whose
+drawing model it returns, and on nothing else.
 
 ## Use
 
