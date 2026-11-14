@@ -138,11 +138,11 @@ struct BitWriter {
 
 /// One object laid out as an AutoCAD release writes it, for the release `version`.
 ///
-/// It starts with the data every entity has (a model space entity on layer 0x10 with default
-/// properties), and the test adds the entity's own fields to `main`, `handles` and, from R2007,
-/// `strings`. This tests the reading of fields no sample drawing uses. It is written from the
-/// same understanding of the format as the reader, so it shows the reader is consistent with it
-/// and cannot trap, not that either is right: the oracle tests do that.
+/// It starts with the data every entity has (by default a model space entity on layer 0x10 with
+/// default properties), and the test adds the entity's own fields to `main`, `handles` and, from
+/// R2007, `strings`. This tests the reading of fields no sample drawing uses. It is written from
+/// the same understanding of the format as the reader, so it shows the reader is consistent with
+/// it and cannot trap, not that either is right: the oracle tests do that.
 struct SyntheticObject {
     let version: DWG.Version
     let type: Int
@@ -151,7 +151,18 @@ struct SyntheticObject {
     var strings = BitWriter()
     private var sizeOffset: Int?
 
-    init(version: DWG.Version, type: Int) {
+    /// Starts an object with the data every entity has.
+    ///
+    /// - Parameters:
+    ///   - version: The release to lay the object out for.
+    ///   - type: The object's type code.
+    ///   - entityMode: 0 names an owner, 1 is the paper space and 2 the model space.
+    ///   - owner: The owner's handle, written when `entityMode` is 0.
+    ///   - links: The neighbours in the block's chain, or `nil` for the ones next to the entity.
+    init(
+        version: DWG.Version, type: Int, entityMode: Int = 2, owner: UInt64 = 0,
+        links: (previous: UInt64, next: UInt64)? = nil
+    ) {
         self.version = version
         self.type = type
         if version >= .ac1015 && version < .ac1024 {
@@ -165,7 +176,8 @@ struct SyntheticObject {
             sizeOffset = main.count
             main.rawLong(0)
         }
-        main.bits(2, 2)  // model space, so no owner handle
+        main.bits(UInt64(entityMode), 2)
+        if entityMode == 0 { handles.handle(owner) }
         main.bitLong(0)  // no reactors
         if version >= .ac1018 {
             main.bit(true)  // no extension dictionary
@@ -177,7 +189,15 @@ struct SyntheticObject {
             handles.handle(0x10)  // layer
             main.bit(true)  // line type by layer
         }
-        if version < .ac1018 { main.bit(true) }  // neighbours implied
+        if version < .ac1018 {
+            if let links {
+                main.bit(false)
+                handles.handle(links.previous)
+                handles.handle(links.next)
+            } else {
+                main.bit(true)  // neighbours implied
+            }
+        }
         main.bitShort(version >= .ac1018 ? 0 : 256)  // colour
         main.bitDouble(1.0)  // line type scale
         guard version >= .ac1015 else {

@@ -220,7 +220,9 @@ struct DXFEmitter {
         }
         // A type this reader decodes has a name only here: it never reaches the other list unless
         // it failed to decode.
-        guard let name = typeName(reader.type) ?? (unreadable ? decodedTypeName(reader.type) : nil)
+        guard
+            let name = ObjectType.typeName(reader.type, classes: store.classes)
+                ?? (unreadable ? ObjectType.decodedTypeName(reader.type) : nil)
         else {
             // No name, and it failed to read: still counted, by what it is not.
             if unreadable { writeBare("UNREADABLE_OBJECT", handle: handle, space: space) }
@@ -229,68 +231,11 @@ struct DXFEmitter {
         writeBare(unreadable ? "UNREADABLE_\(name)" : name, handle: handle, space: space)
     }
 
-    /// The DXF name of an entity type that `readEntity` decodes.
-    private func decodedTypeName(_ type: Int) -> String? {
-        switch type {
-        case ObjectType.line: return "LINE"
-        case ObjectType.circle: return "CIRCLE"
-        case ObjectType.arc: return "ARC"
-        case ObjectType.point: return "POINT"
-        case ObjectType.text: return "TEXT"
-        case ObjectType.mtext: return "MTEXT"
-        case ObjectType.insert, ObjectType.minsert: return "INSERT"
-        case ObjectType.ellipse: return "ELLIPSE"
-        case ObjectType.spline: return "SPLINE"
-        case ObjectType.lwpolyline: return "LWPOLYLINE"
-        case ObjectType.polyline2D, ObjectType.polyline3D: return "POLYLINE"
-        case ObjectType.vertex2D, ObjectType.vertex3D: return "VERTEX"
-        case ObjectType.seqend: return "SEQEND"
-        case ObjectType.solid: return "SOLID"
-        case ObjectType.trace: return "TRACE"
-        case ObjectType.face3D: return "3DFACE"
-        case ObjectType.dimensionOrdinate, ObjectType.dimensionLinear,
-            ObjectType.dimensionAligned, ObjectType.dimensionAngular3Point,
-            ObjectType.dimensionAngular2Line, ObjectType.dimensionRadius,
-            ObjectType.dimensionDiameter:
-            return "DIMENSION"
-        case ObjectType.leader: return "LEADER"
-        case ObjectType.hatch: return "HATCH"
-        default: return nil
-        }
-    }
-
     /// A record of this type with a handle and nothing else.
     mutating func writeBare(_ type: String, handle: UInt64, space: Space) {
         writer.begin(type)
         writer.handle(5, handle)
         if space == .paper { writer.group(67, 1) }
-    }
-
-    /// The DXF name of an object type that is an entity, or `nil` for one that is not.
-    private func typeName(_ type: Int) -> String? {
-        if type >= ObjectType.firstClass {
-            guard let found = store.classes[type], found.itemClassID == 0x1F2 else { return nil }
-            return found.dxfName
-        }
-        switch type {
-        case ObjectType.attrib: return "ATTRIB"
-        case ObjectType.attdef: return "ATTDEF"
-        case ObjectType.vertexMesh, ObjectType.vertexPFace, ObjectType.vertexPFaceFace:
-            return "VERTEX"
-        case ObjectType.polylinePFace: return "POLYFACE_MESH"
-        case ObjectType.polylineMesh: return "POLYGON_MESH"
-        case ObjectType.shape: return "SHAPE"
-        case ObjectType.viewport: return "VIEWPORT"
-        case ObjectType.region: return "REGION"
-        case ObjectType.solid3D: return "3DSOLID"
-        case ObjectType.body: return "BODY"
-        case ObjectType.ray: return "RAY"
-        case ObjectType.xline: return "XLINE"
-        case ObjectType.oleFrame, ObjectType.ole2Frame: return "OLE2FRAME"
-        case ObjectType.tolerance: return "TOLERANCE"
-        case ObjectType.mline: return "MLINE"
-        default: return nil
-        }
     }
 
     /// The data every entity starts with, as groups.

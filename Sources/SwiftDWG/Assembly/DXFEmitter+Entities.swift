@@ -316,7 +316,7 @@ extension DXFEmitter {
             out.append(handle)
             if handle == last { break }
             guard var reader = try? store.reader(for: handle),
-                let vertex = try? reader.readEntityCommonForChain()
+                let vertex = try? reader.readEntityCommonThroughLinks()
             else { break }
             handle = vertex.next != 0 ? vertex.next : handle + 1
         }
