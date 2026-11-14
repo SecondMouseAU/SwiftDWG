@@ -142,7 +142,7 @@ struct Container {
         guard fileID == "AcFssFcAJMB" else {
             throw DWG.Error.invalid("the file header is not valid (file id \(fileID ?? "?"))")
         }
-        let pageMapAddress = Int(try header.uint64(at: 0x54)) + 0x100
+        let pageMapAddress = try header.uint64AsInt(at: 0x54) + 0x100
         let sectionMapID = Int(try header.uint32(at: 0x5C))
 
         let pageRecords = try readPageMap(at: pageMapAddress)
@@ -179,6 +179,7 @@ struct Container {
         let count = Int(try map.int32(at: 0))
         guard count >= 0, count < 4096 else { throw DWG.Error.invalid("section count \(count)") }
         var position = 20
+        var pagesLeft: UInt64 = 1 << 20
 
         for _ in 0..<count {
             var descriptor = Descriptor()
@@ -200,11 +201,23 @@ struct Container {
                 throw DWG.Error.invalid("section \(descriptor.name) has a size that is not valid")
             }
 
+            // A page is held in memory whether or not it is written, so the pages of every section
+            // together are limited: a file of 30 GB at the usual page size is still inside it.
+            let pagesNeeded = descriptor.size / descriptor.pageSize + UInt64(pageCount) + 1
+            guard pagesNeeded <= pagesLeft else {
+                throw DWG.Error.invalid("section \(descriptor.name) has too many pages")
+            }
+            pagesLeft -= pagesNeeded
+
             var covered: UInt64 = 0
             for _ in 0..<pageCount {
                 let number = Int(try map.int32(at: position))
                 let offset = try map.uint64(at: position + 8)
                 position += 16
+                // A page starts inside the section; without this a gap to fill could be any size.
+                guard offset <= descriptor.size else {
+                    throw DWG.Error.invalid("a page of section \(descriptor.name) is past its end")
+                }
                 // Pages that are all zeros are not written; fill the gap before this one.
                 while covered < offset {
                     descriptor.pages.append(Page(size: descriptor.pageSize, isEmpty: true))
@@ -338,7 +351,7 @@ struct Container {
         let pageMapOffset = try meta.uint64(at: 0x38)
         let pageMapCompressed = try meta.uint64(at: 0x50)
         let pageMapSize = try meta.uint64(at: 0x58)
-        let sectionMapID = Int(try meta.uint64(at: 0xC0))
+        let sectionMapID = try meta.uint64AsInt(at: 0xC0)
         let sectionMapCompressed = try meta.uint64(at: 0xB0)
         let sectionMapSize = try meta.uint64(at: 0xC8)
         let sectionMapFactor = try meta.uint64(at: 0xD8)
@@ -349,8 +362,10 @@ struct Container {
         var position = 0
         var seeker = 0
         while position + 16 <= pageMap.count {
-            let size = Int(try pageMap.uint64(at: position))
-            let identifier = abs(Int(Int64(bitPattern: try pageMap.uint64(at: position + 8))))
+            let size = try pageMap.uint64AsInt(at: position)
+            // The magnitude, which for the one value that has no positive twin is only a key.
+            let signed = Int64(bitPattern: try pageMap.uint64(at: position + 8))
+            let identifier = Int(truncatingIfNeeded: signed.magnitude)
             position += 16
             guard size >= 0, size <= 1 << 30 else { throw DWG.Error.invalid("page size \(size)") }
             pagesR2007[identifier] = Locator(seeker: seeker, size: size)
@@ -373,7 +388,7 @@ struct Container {
             let maxPageSize = try map.uint64(at: position + 0x08)
             section.encoding = try map.uint64(at: position + 0x30)
             let nameLength = Int(Int64(bitPattern: try map.uint64(at: position + 0x20)))
-            let pageCount = Int(try map.uint64(at: position + 0x38))
+            let pageCount = try map.uint64AsInt(at: position + 0x38)
             position += 0x40
             guard nameLength >= 0, nameLength <= 1 << 12, pageCount >= 0,
                 pageCount <= map.count / 56
@@ -394,8 +409,8 @@ struct Container {
                 let offset = try map.uint64(at: position)
                 var page = PageR2007()
                 page.number = Int(Int64(bitPattern: try map.uint64(at: position + 16)))
-                page.decompressedSize = Int(try map.uint64(at: position + 24))
-                page.compressedSize = Int(try map.uint64(at: position + 32))
+                page.decompressedSize = try map.uint64AsInt(at: position + 24)
+                page.compressedSize = try map.uint64AsInt(at: position + 32)
                 position += 56
                 guard page.decompressedSize >= 0, page.decompressedSize <= 1 << 28,
                     page.compressedSize >= 0, page.compressedSize <= 1 << 28
@@ -418,8 +433,12 @@ struct Container {
     private func pageBufferR2007(
         offset: UInt64, compressed: UInt64, size: UInt64, factor: UInt64, blockSize: Int
     ) throws -> [UInt8] {
+        // The bound comes first: adding to a value near UInt64.max overflows.
+        guard compressed <= 1 << 28, factor <= 1 << 8, size <= 1 << 28 else {
+            throw DWG.Error.invalid("R2007 map page with a size that is not valid")
+        }
         let padded = (compressed + 7) & ~7
-        guard padded <= 1 << 28, factor <= 1 << 8, size <= 1 << 28 else {
+        guard padded <= 1 << 28 else {
             throw DWG.Error.invalid("R2007 map page with a size that is not valid")
         }
         let total = Int(padded * factor)
