@@ -90,6 +90,12 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`; entities on a lost layer
   read as layer `0`. A control object of one of those tables that cannot be read stops the read
   with a `DWG.Error`, as every record of its table is reached through it.
+- **A corrupt file** ends in a `DWG.Error`, or in a drawing that counts what it lost; it is not
+  meant to stop the process with a trap or to never return, and memory is bounded by the sizes the
+  file declares. That is checked by inverting single bytes: in the committed drawings, every byte
+  of the file header and one in 1,009 of the rest, and on a developer machine in the AutoCAD
+  samples, the first 1,280 bytes and some 250 more of each. It is not proved for every byte of
+  every file, so a file found to trap or hang is a bug to report.
 - **Three or more unreadable entities in one block, before R2004.** In those files each entity
   names the one before it and the one after it. An entity that cannot be read is counted and the
   others are kept: the links are followed from both ends of the block, and what lies between two

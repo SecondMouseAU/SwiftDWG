@@ -37,6 +37,8 @@ enum LZ77 {
                 opcode = try twoByteOffset(&offset, added: 1, &input)
             }
 
+            // An opcode below 0x10 here is not one a valid stream has: it would give a length of -1.
+            guard length >= 0 else { throw DWG.Error.invalid("LZ77 match with a negative length") }
             guard offset > 0, offset <= output.count else {
                 throw DWG.Error.invalid("LZ77 back reference outside the data")
             }
