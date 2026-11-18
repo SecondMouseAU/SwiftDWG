@@ -409,8 +409,12 @@ extension DXFEmitter {
             writer.group(78, hatch.patternLines.count)
             for line in hatch.patternLines {
                 writer.group(53, Self.degrees(line.angle))
-                writer.point2D(43, x: line.basePoint.x, y: line.basePoint.y)
-                writer.point2D(45, x: line.offset.x, y: line.offset.y)
+                // A pattern line's base point is 43 and 44, and its offset 45 and 46: the y is
+                // one code on, not ten as for a point.
+                writer.group(43, line.basePoint.x)
+                writer.group(44, line.basePoint.y)
+                writer.group(45, line.offset.x)
+                writer.group(46, line.offset.y)
                 writer.group(79, line.dashLengths.count)
                 for dash in line.dashLengths { writer.group(49, dash) }
             }

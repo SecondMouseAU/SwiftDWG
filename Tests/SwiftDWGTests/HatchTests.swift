@@ -313,4 +313,66 @@ struct HatchTests {
         #expect(!HatchBoundaryPath(flags: 1).isPolyline)
         #expect(!HatchBoundaryPath(flags: 1).isDerived)
     }
+
+    // MARK: The DXF text
+
+    /// The groups after group 78 that define the pattern lines (53, 43 to 46, 79 and 49), in
+    /// order.
+    static func patternGroups(_ record: DXFRecord?) -> [(code: Int, value: Double)] {
+        guard let record else { return [] }
+        let codes: Set<Int> = [53, 43, 44, 45, 46, 79, 49]
+        return record.groups.drop { $0.code != 78 }.dropFirst()
+            .filter { codes.contains($0.code) }
+            .compactMap { group in Double(group.value).map { (group.code, $0) } }
+    }
+
+    @Test("a pattern line is written with its base point in 43 and 44, and its offset in 45 and 46")
+    func patternLineGroups() throws {
+        let store = try ObjectStore(try Container(try Fixtures.data("BLOCKPOINTPARAMETER.dwg")))
+        var emitter = DXFEmitter(try Document(store: store))
+        var hatch = HatchData()
+        hatch.patternName = "ANSI31"
+        hatch.patternLines = [
+            HatchPatternLine(
+                angle: .pi / 4, basePoint: DXF.Point2(1, 2), offset: DXF.Point2(3, 4),
+                dashLengths: [0.5])
+        ]
+        emitter.write(
+            DecodedEntity(common: EntityCommon(handle: 0x99), geometry: .hatch(hatch)),
+            space: .model)
+        let record = try #require(DXFGroups.records(text: emitter.writer.text)[0x99])
+        let groups = Self.patternGroups(record)
+        #expect(groups.map(\.code) == [53, 43, 44, 45, 46, 79, 49])
+        #expect(groups.map(\.value) == [45, 1, 2, 3, 4, 1, 0.5])
+    }
+
+    @Test("the pattern lines in the DXF text are AutoCAD's, from R14 to R2018")
+    func patternLinesAgainstAutoCAD() throws {
+        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS: skipped without it
+        // R14 has no DXF of its own; its hatches keep the handles of the R2000 drawing.
+        let pairs =
+            [("sample_AC1014", "sample_AC1015")]
+            + (Fixtures.corpusNamesOther + Fixtures.corpusNames).map { ($0, $0) }
+        for (dwg, dxf) in pairs {
+            let data = try Data(contentsOf: corpus.appendingPathComponent("\(dwg).dwg"))
+            let ours = DXFGroups.records(text: try DWG.dxfText(data: data))
+            let theirs = try DXFGroups.records(
+                in: corpus.appendingPathComponent("\(dxf)_ascii.dxf")
+            ).filter { $0.value.type == "HATCH" }
+            #expect(theirs.count == 8, "\(dxf)")
+            var lines = 0
+            for (handle, record) in theirs {
+                let expected = Self.patternGroups(record)
+                let written = Self.patternGroups(ours[handle])
+                lines += expected.filter { $0.code == 53 }.count
+                #expect(
+                    ours[handle]?.type == "HATCH" && written.count == expected.count
+                        && zip(written, expected).allSatisfy {
+                            $0.code == $1.code && EntityOracle.near($0.value, $1.value)
+                        },
+                    "\(dwg) \(String(handle, radix: 16, uppercase: true))")
+            }
+            #expect(lines > 0, "\(dxf) has pattern lines")
+        }
+    }
 }
