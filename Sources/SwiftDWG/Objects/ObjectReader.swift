@@ -26,14 +26,20 @@ struct ObjectReader {
     private var hasTextStream = false
     /// Where the object's data starts, which the offsets inside it count from.
     let initialBit: Int
-    /// The object's type code.
+    /// The object's type code: a fixed code, or from 500 the number of one of the file's classes.
+    ///
+    /// A class that is read as a fixed type has that type's code here (see
+    /// `ObjectType.fixedCode(of:classes:)`).
     let type: Int
     /// The object's own handle, once `readCommonData` has read it.
     private(set) var handle: UInt64 = 0
 
     /// Starts reading the object at `offset` in the objects section.
+    ///
+    /// The file's classes say what an object whose type is a class number is.
     init(
-        objects: [UInt8], offset: Int, version: DWG.Version, textEncoding: String.Encoding
+        objects: [UInt8], offset: Int, version: DWG.Version, textEncoding: String.Encoding,
+        classes: [Int: DWGClass] = [:]
     ) throws {
         self.version = version
         guard offset >= 0, offset < objects.count else {
@@ -58,7 +64,7 @@ struct ObjectReader {
             }
             main = head
             initialBit = head.position
-            type = try main.readObjectType()
+            type = ObjectType.fixedCode(of: try main.readObjectType(), classes: classes)
             try handles.seek(toBit: handleStart)
             if let start = try head.stringStreamStart(flagBit: handleStart - 1) {
                 try text.seek(toBit: start)
@@ -66,7 +72,7 @@ struct ObjectReader {
             }
         } else {
             initialBit = head.position
-            type = try main.readObjectType()
+            type = ObjectType.fixedCode(of: try main.readObjectType(), classes: classes)
         }
     }
 

@@ -46,8 +46,8 @@ struct ObjectStore {
     func reader(for handle: UInt64) throws -> ObjectReader? {
         guard let offset = map[handle] else { return nil }
         return try ObjectReader(
-            objects: objects, offset: offset, version: container.version, textEncoding: textEncoding
-        )
+            objects: objects, offset: offset, version: container.version,
+            textEncoding: textEncoding, classes: classes)
     }
 
     /// The entity with this handle, or `nil` if there is none or its type is not decoded yet.

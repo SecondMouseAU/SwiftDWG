@@ -31,7 +31,11 @@ enum DXFGroups {
     ///
     /// The handle is group 5, or 105 for a dimension style. Records without one are left out.
     static func records(in url: URL) throws -> [UInt64: DXFRecord] {
-        let text = try String(contentsOf: url, encoding: .utf8)
+        records(text: try String(contentsOf: url, encoding: .utf8))
+    }
+
+    /// The same records, from DXF text such as `DWG.dxfText` writes.
+    static func records(text: String) -> [UInt64: DXFRecord] {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map {
             $0.trimmingCharacters(in: .whitespaces)
         }
