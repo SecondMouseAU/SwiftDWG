@@ -83,9 +83,11 @@ timestamp: 2026-11-18
   paths of polylines and of line, arc, ellipse and spline edges, pattern lines, seed points,
   gradient). Compared with AutoCAD's DXF on R2004 to R2018 in `DimensionsTests`, `LeaderTests` and
   `HatchTests`; `DimensionsSupportTests` builds objects no sample has. The R2000 and R2007 paths
-  are ported but not checked against a file. R14's hatches are compared with the R2000 sample's
-  DXF by handle in `ClassEntityTests`, and the pattern lines of the DXF text with AutoCAD's on R14
-  to R2018 in `HatchTests`.
+  are checked against a file only through the whole drawing (`DrawingOracleTests`), not field by
+  field, with one exception: the hatch layout before R2004, which R14 and R2000 share, is compared
+  field by field with the R2000 sample's DXF through R14's hatches, by handle, in
+  `ClassEntityTests`. The pattern lines of the DXF text are compared with AutoCAD's on R14 to R2018
+  in `HatchTests`.
 - **Table records** (`Objects/TableRecords.swift`, `Objects/Tables*.swift`): the symbol tables and
   what hangs off them, read by `ObjectStore.tableRecord(_:)`: the control object of each table (its
   entry handles), block records, layers, line types, text styles, dimension styles (every variable

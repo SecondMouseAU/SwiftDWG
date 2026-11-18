@@ -157,6 +157,14 @@ struct ClassEntityTests {
         #expect(try Self.read(Self.hatch(), classes: [:]) == nil)
     }
 
+    @Test("an R14 polyline or hatch of a class, cut at any byte, is refused until it is whole")
+    func truncatedHandBuilt() {
+        for (label, object) in [("lwpolyline", Self.polyline()), ("hatch", Self.hatch())] {
+            DamagedObjectTests.checkTruncation(
+                object.bytes(), .ac1014, label, classes: Self.classes)
+        }
+    }
+
     // MARK: The R14 sample
 
     /// The R14 sample, and AutoCAD's DXF of the same drawing saved as R2000, or `nil` without
@@ -264,6 +272,56 @@ struct ClassEntityTests {
         #expect(DamagedFileTests.entityCount(drawing) == before - 2)
     }
 
+    @Test("the R14 sample's polylines and hatches, cut or with a byte overwritten, never trap")
+    func damagedSampleObjects() throws {
+        guard case (let dwg, _)? = Self.sample() else { return }  // needs DWG_CORPUS
+        let store = try ObjectStore(try Container([UInt8](try Data(contentsOf: dwg))))
+        var tried: [Int: Int] = [:]
+        for handle in store.handles {
+            guard let reader = try store.reader(for: handle),
+                reader.type == ObjectType.lwpolyline || reader.type == ObjectType.hatch,
+                let offset = store.map[handle]
+            else { continue }
+            var head = BitReader(store.objects, version: .ac1014, position: offset * 8)
+            let size = try head.readModularShort()
+            let header = head.position / 8 - offset
+            let end = min(store.objects.count, offset + header + size + 2)
+            let bytes = Array(store.objects[offset..<end])
+            tried[reader.type, default: 0] += 1
+            let label = "\(CurveOracle.hex(handle))"
+            // Four hatches have patterns of 3 to 13 KB, and a read of each cut and each damaged
+            // byte would take minutes. Their first 400 bytes, which hold the counts and the
+            // paths, are cut and damaged instead.
+            let checked: Int
+            if bytes.count <= 1_000 {
+                DamagedObjectTests.checkTruncation(bytes, .ac1014, label, classes: store.classes)
+                checked = bytes.count
+            } else {
+                checked = 400
+                for cut in stride(from: 4, to: checked, by: 5) {
+                    let outcome = DamagedObjectTests.attempt(
+                        bytes, .ac1014, cut: cut, classes: store.classes)
+                    if case .unexpected(let message) = outcome {
+                        Issue.record("\(label) cut at \(cut): \(message)")
+                    }
+                }
+            }
+            // The type, a class number, takes the first 18 bits, and is left as it is.
+            for index in (header + 3)..<min(checked, header + size) {
+                for value in [UInt8(0xFF), 0x00, 0x80] {
+                    var damaged = bytes
+                    damaged[index] = value
+                    let outcome = DamagedObjectTests.attempt(
+                        damaged, .ac1014, classes: store.classes)
+                    if case .unexpected(let message) = outcome {
+                        Issue.record("\(label) byte \(index): \(message)")
+                    }
+                }
+            }
+        }
+        #expect(tried == [ObjectType.lwpolyline: 23, ObjectType.hatch: 8])
+    }
+
     // MARK: A real R14 drawing
 
     /// A railway vehicle drawing saved as R14, `FD-0123_ﾀ550形550-551.dwg`.
@@ -274,44 +332,71 @@ struct ClassEntityTests {
     @Test("a real R14 drawing's lightweight polylines and hatches are the ones acadrust reads")
     func railwayDrawing() throws {
         guard let corpus = Fixtures.corpus,
-            let name = try FileManager.default.contentsOfDirectory(atPath: corpus.path).first(
-                where: { $0.hasPrefix("FD-0123") && $0.hasSuffix(".dwg") })
+            let name = try FileManager.default.contentsOfDirectory(atPath: corpus.path).sorted()
+                .first(where: { $0.hasPrefix("FD-0123_") && $0.hasSuffix(".dwg") })
         else { return }  // needs the drawing in DWG_CORPUS: skipped without it
         let text = try DWG.dxfText(data: try Data(contentsOf: corpus.appendingPathComponent(name)))
         let records = DXFGroups.records(text: text)
-        func near(_ a: [String], _ b: [Double]) -> Bool {
-            a.count == b.count && zip(a, b).allSatisfy { EntityOracle.near(Double($0) ?? .nan, $1) }
+
+        // Each lightweight polyline and each hatch path as its vertex count, closed flag and the
+        // sums of x, of y and of the bulge, each weighted by the vertex's place (1, 2, 3, ...),
+        // so that a vertex or a bulge that is wrong or in the wrong place changes them. Worked
+        // out from acadrust's DXF of the drawing.
+        let polylines: [UInt64: (count: Int, closed: Int, x: Double, y: Double, bulge: Double)] = [
+            0xCB01: (2, 0, 43643.106864520705, 9274.996062459588, 0),
+            0x10A62: (5, 0, 48000.04090146316, 43340.01798226603, 0),
+            0x10A78: (3, 0, 20810.016360585265, 16655.00719290641, 0),
+            0x10BAB: (3, 0, 75174.88223521931, 16657.576494990935, 0),
+            0x10BF5: (6, 0, 304646.74805164494, 68458.34697941376, 0),
+            0x11145: (7, 0, 93461.25929127142, 248136.71002926835, 0),
+            0x11218: (7, 0, 354538.7394004775, 239062.17645059203, 0),
+            0x116D7: (5, 0, 117078.27794695407, 63640.22765587144, 0),
+            0x11AC5: (8, 1, 401769.4977171417, 120318.17729959138, -8.284271247461874),
+            0x11ACB: (8, 1, 394855.42447914026, 113196.17936612605, -8.284271247461902),
+            0x11ACC: (5, 0, 167137.29071547568, 47339.2405414964, 0),
+            0x11AEE: (5, 0, 164364.76019964175, 50564.24140255252, 0),
+            0x11B11: (8, 1, 367449.4977171417, 113198.37799885597, -8.284271247461902),
+            0x11B2A: (8, 1, 385889.49771714164, 112898.377998856, -8.284271247461895),
+        ]
+        let hatchPaths: [UInt64: (count: Int, x: Double, y: Double)] = [
+            0x113A8: (6, 166200.03608334193, 170129.1887946745),
+            0x113A9: (6, 169797.46387120313, 194491.1918352444),
+        ]
+        func weighted(_ values: [Double]) -> Double {
+            values.enumerated().reduce(0) { $0 + Double($1.offset + 1) * $1.element }
         }
 
-        let polylines = records.values.filter { $0.type == "LWPOLYLINE" }
-        #expect(polylines.count == 14)
-        #expect(polylines.allSatisfy { $0.first(8) != nil })
-        #expect(polylines.reduce(0) { $0 + $1.all(10).count } == 80)
-        #expect(polylines.filter { ($0.int(70) ?? 0) & 1 == 1 }.count == 4)
-        let bulges = polylines.flatMap { $0.all(42).compactMap { Double($0) } }
-        #expect(bulges.filter { $0 != 0 }.count == 16)
-        #expect(EntityOracle.near(bulges.reduce(0, +), -6.627416997969511))
-        if let first = records[0xCB01] {
-            #expect(first.type == "LWPOLYLINE" && first.first(8) == "LINE-2B")
-            #expect(near(first.all(10), [14547.702288173568, 14547.702288173568]))
-            #expect(near(first.all(20), [3185.0787265390463, 3044.9586679602708]))
-        } else {
-            Issue.record("no record CB01")
+        #expect(Set(records.filter { $0.value.type == "LWPOLYLINE" }.keys) == Set(polylines.keys))
+        for (handle, expected) in polylines {
+            let label = CurveOracle.hex(handle)
+            guard let record = records[handle] else { continue }
+            let vertices = PolylinesTests.vertices(of: record)
+            #expect(record.first(8) != nil, "\(label) has a layer")
+            #expect(vertices.count == expected.count, "\(label) vertices")
+            #expect(record.int(90) == expected.count, "\(label) count")
+            #expect((record.int(70) ?? 0) & 1 == expected.closed, "\(label) closed")
+            #expect(EntityOracle.near(weighted(vertices.map(\.x)), expected.x), "\(label) x")
+            #expect(EntityOracle.near(weighted(vertices.map(\.y)), expected.y), "\(label) y")
+            let bulge = weighted(vertices.map(\.bulge))
+            #expect(EntityOracle.near(bulge, expected.bulge), "\(label) bulge")
         }
+        #expect(records[0xCB01]?.first(8) == "LINE-2B")
 
-        let hatches = records.values.filter { $0.type == "HATCH" }
-        #expect(hatches.count == 2)
-        for hatch in hatches {
-            #expect(hatch.first(8) == "LINE-1A" && hatch.first(2) == "ANSI37")
-            // One path, of flags 7 (external, a polyline, derived), with six vertices.
-            #expect(hatch.int(91) == 1 && hatch.int(92) == 7 && hatch.int(93) == 6)
-        }
-        if let first = records[0x113A8] {
-            // The first vertex of the path follows the elevation point.
-            #expect(near(Array(first.all(10).dropFirst().prefix(1)), [8299.994465637288]))
-            #expect(near(Array(first.all(20).dropFirst().prefix(1)), [7989.961371177516]))
-        } else {
-            Issue.record("no record 113A8")
+        #expect(Set(records.filter { $0.value.type == "HATCH" }.keys) == Set(hatchPaths.keys))
+        for (handle, expected) in hatchPaths {
+            let label = CurveOracle.hex(handle)
+            guard let record = records[handle] else { continue }
+            #expect(record.first(8) == "LINE-1A" && record.first(2) == "ANSI37", "\(label)")
+            // One path, of flags 7 (external, a polyline, derived), and no bulges.
+            #expect(record.int(91) == 1 && record.int(92) == 7 && record.int(72) == 0, "\(label)")
+            // The path's vertices are the 10 and 20 groups between its count (93) and the count
+            // of its source objects (97).
+            let path = record.groups.drop { $0.code != 93 }.dropFirst().prefix { $0.code != 97 }
+            let xs = path.filter { $0.code == 10 }.compactMap { Double($0.value) }
+            let ys = path.filter { $0.code == 20 }.compactMap { Double($0.value) }
+            #expect(record.int(93) == expected.count && xs.count == expected.count, "\(label)")
+            #expect(EntityOracle.near(weighted(xs), expected.x), "\(label) x")
+            #expect(EntityOracle.near(weighted(ys), expected.y), "\(label) y")
         }
     }
 }

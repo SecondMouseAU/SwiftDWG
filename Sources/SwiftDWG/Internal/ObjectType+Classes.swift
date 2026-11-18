@@ -7,6 +7,7 @@ extension ObjectType {
     /// In an R14 file lightweight polylines and hatches have no fixed codes: the file defines a
     /// class for each, and their objects carry its number. Their data is laid out as in the
     /// releases that give them the codes 0x4D and 0x4E, so they are read with the same decoders.
+    /// A file of any release that has such a class is read the same way.
     static func fixedCode(of type: Int, classes: [Int: DWGClass]) -> Int {
         guard type >= firstClass, let found = classes[type] else { return type }
         switch found.dxfName {

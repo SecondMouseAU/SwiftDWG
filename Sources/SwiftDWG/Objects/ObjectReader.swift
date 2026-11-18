@@ -36,10 +36,11 @@ struct ObjectReader {
 
     /// Starts reading the object at `offset` in the objects section.
     ///
-    /// The file's classes say what an object whose type is a class number is.
+    /// The file's classes say what an object whose type is a class number is, so they are always
+    /// given: without them an R14 lightweight polyline or hatch is not read.
     init(
         objects: [UInt8], offset: Int, version: DWG.Version, textEncoding: String.Encoding,
-        classes: [Int: DWGClass] = [:]
+        classes: [Int: DWGClass]
     ) throws {
         self.version = version
         guard offset >= 0, offset < objects.count else {
