@@ -4,7 +4,7 @@ title: Components index
 resource: https://github.com/SecondMouseAU/SwiftDWG
 tags: [index]
 description: Public modules and API surfaces exposed by SwiftDWG.
-timestamp: 2026-11-14
+timestamp: 2026-11-18
 ---
 
 # Components
@@ -48,7 +48,11 @@ timestamp: 2026-11-14
   `invalid`).
 - **Classes and object map** (`Internal/Classes.swift`, `Internal/ObjectMap.swift`): the file's
   custom classes by number, and the offset of every object by handle. `ObjectStore` ties them to
-  the objects section and decodes an object on request.
+  the objects section and decodes an object on request. An R14 file keeps its lightweight
+  polylines and hatches as classes, with no fixed type code, so an object whose type is the number
+  of a class named `LWPOLYLINE` or `HATCH` is read as that fixed type, with the same decoder
+  (`Internal/ObjectType+Classes.swift`, after ACadSharp's `readUnlistedType`). One that then cannot
+  be read is counted as `UNREADABLE_LWPOLYLINE` or `UNREADABLE_HATCH`.
 - **Object reader** (`Objects/ObjectReader.swift`, `Objects/EntityCommon.swift`): an object's three
   runs of bits (data, strings from R2007, handles), the data every object starts with, and the
   common part of every entity (layer, colour, line type, owner). `Objects/Geometry.swift` decodes
@@ -65,7 +69,8 @@ timestamp: 2026-11-14
   and 3D `POLYLINE` with their `VERTEX` and `SEQEND`, `SOLID`, `TRACE` and `3DFACE`, in the file's
   own terms. A polyline carries the handles of its vertices and its `SEQEND`, for assembly. Compared
   with AutoCAD's DXF in `CurvesTests`, `PolylinesTests` and `SurfacesTests`; polyface and mesh
-  polylines are not decoded yet.
+  polylines are not decoded yet. R14's lightweight polylines keep the handles of the R2000 sample,
+  and are compared with its DXF by handle in `ClassEntityTests`.
 - **Oracle tests** (`Tests/SwiftDWGTests/EntityOracleTests.swift`): decoded entities against the ones in
   AutoCAD's own DXF export, by handle.
 - **DXF writer** (`Internal/DXFWriter.swift`): writes group codes and values as ASCII DXF. A drawing
@@ -78,7 +83,11 @@ timestamp: 2026-11-14
   paths of polylines and of line, arc, ellipse and spline edges, pattern lines, seed points,
   gradient). Compared with AutoCAD's DXF on R2004 to R2018 in `DimensionsTests`, `LeaderTests` and
   `HatchTests`; `DimensionsSupportTests` builds objects no sample has. The R2000 and R2007 paths
-  are ported but not checked against a file.
+  are checked against a file only through the whole drawing (`DrawingOracleTests`), not field by
+  field, with one exception: the hatch layout before R2004, which R14 and R2000 share, is compared
+  field by field with the R2000 sample's DXF through R14's hatches, by handle, in
+  `ClassEntityTests`. The pattern lines of the DXF text are compared with AutoCAD's on R14 to R2018
+  in `HatchTests`.
 - **Table records** (`Objects/TableRecords.swift`, `Objects/Tables*.swift`): the symbol tables and
   what hangs off them, read by `ObjectStore.tableRecord(_:)`: the control object of each table (its
   entry handles), block records, layers, line types, text styles, dimension styles (every variable

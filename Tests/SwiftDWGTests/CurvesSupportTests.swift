@@ -756,10 +756,13 @@ struct DamagedObjectTests {
     }
 
     /// Reads the entity in `bytes`, with both of its streams cut to `cut` bytes when it is given.
-    static func attempt(_ bytes: [UInt8], _ version: DWG.Version, cut: Int? = nil) -> Outcome {
+    static func attempt(
+        _ bytes: [UInt8], _ version: DWG.Version, cut: Int? = nil, classes: [Int: DWGClass] = [:]
+    ) -> Outcome {
         do {
             var reader = try ObjectReader(
-                objects: bytes, offset: 0, version: version, textEncoding: .windowsCP1252)
+                objects: bytes, offset: 0, version: version, textEncoding: .windowsCP1252,
+                classes: classes)
             if let cut {
                 let kept = Array(bytes.prefix(cut))
                 reader.main = BitReader(kept, version: version, position: reader.main.position)
@@ -776,17 +779,19 @@ struct DamagedObjectTests {
 
     /// Cuts the object at every byte: the entity decodes from some length on, and before that
     /// every attempt is refused.
-    static func checkTruncation(_ bytes: [UInt8], _ version: DWG.Version, _ label: String) {
+    static func checkTruncation(
+        _ bytes: [UInt8], _ version: DWG.Version, _ label: String, classes: [Int: DWGClass] = [:]
+    ) {
         var decoded = false
         for cut in 0...bytes.count {
-            switch attempt(bytes, version, cut: cut) {
+            switch attempt(bytes, version, cut: cut, classes: classes) {
             case .decoded: decoded = true
             case .rejected: #expect(!decoded, "\(label): decoded at a shorter cut, not at \(cut)")
             case .unexpected(let message): Issue.record("\(label) at \(cut): \(message)")
             }
         }
         #expect(decoded, "\(label): never decoded")
-        if case .rejected = attempt(bytes, version, cut: 0) {
+        if case .rejected = attempt(bytes, version, cut: 0, classes: classes) {
         } else {
             Issue.record("\(label): decoded from no bytes")
         }

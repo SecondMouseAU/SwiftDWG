@@ -226,11 +226,11 @@ struct DrawingOracleTests {
             data: try Data(contentsOf: corpus.appendingPathComponent("sample_AC1014.dwg")))
         let theirs = try DXF.read(
             contentsOf: corpus.appendingPathComponent("sample_AC1015_ascii.dxf"))
-        // There is no DXF of the R14 file, and the two saves do not share handles, so the
-        // entities are compared as sets of what they hold. R14 has no hatch, lightweight
-        // polyline or multiline text, and the later drawing's dimensions, leader and spline
-        // differ in ways that need a DXF of the R14 file to judge: only the simple kinds are
-        // required to agree.
+        // There is no DXF of the R14 file, and the two saves do not share every handle, so the
+        // entities are compared as sets of what they hold. The later drawing's dimensions,
+        // leader and spline differ in ways that need a DXF of the R14 file to judge: only the
+        // simple kinds are required to agree here. The lightweight polylines and hatches keep
+        // their handles, and are compared by handle in `ClassEntityTests`.
         func descriptions(_ drawing: DXF.Drawing) -> Set<String> {
             // R14 writes names in upper case, so the text is compared without regard to case.
             Set(DrawingOracle.entities(of: drawing).values.map { $0.uppercased() })

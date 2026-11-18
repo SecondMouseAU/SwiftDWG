@@ -18,6 +18,11 @@ decoded entities with (by handle, coordinates exactly). The four larger `sample_
 their `_ascii.dxf` exports, from the same folder, get the same comparison when `DWG_CORPUS` points at
 `samples/`: 154 entities each, with no difference.
 
+`ClassEntityTests` also reads one drawing that is not in ACadSharp's samples, when a copy of it is
+in the `DWG_CORPUS` folder: `FD-0123_ﾀ550形550-551.dwg`, an R14 railway vehicle drawing from the
+maintainer's own collection. It is third-party and is not committed. It has no DXF export, so its
+lightweight polylines and hatches are compared with what acadrust 0.6.8 reads from it.
+
 `TableOracleTests` compares the table records, control objects, dictionaries and layouts of the same
 files with the same DXF exports, by handle. AutoCAD creates some objects when it saves (round-trip
 dictionaries and the like) and numbers them differently in the DWG and the DXF, so a few objects

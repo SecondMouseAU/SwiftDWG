@@ -59,7 +59,7 @@ identities. `DWG.dxfText` shows that text, which is also a way to convert a DWG 
 | R2018 `AC1032`, R2013 `AC1027`, R2010 `AC1024`, R2004 `AC1018` | yes | yes, whole drawing |
 | R2007 `AC1021` | yes | yes, whole drawing |
 | R2000 `AC1015` | yes | yes, whole drawing |
-| R14 `AC1014` | yes | partly: no DXF of its own, compared with the R2000 one for the simple entities |
+| R14 `AC1014` | yes | partly: no DXF of its own, compared with the R2000 one for the simple entities, and by handle for the lightweight polylines and hatches |
 | R13 `AC1012` | written, never run | no sample file |
 | R12 `AC1009` and older | no | not planned: neither the specification nor the code this is ported from covers them |
 
