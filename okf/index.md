@@ -4,7 +4,7 @@ title: SwiftDWG
 resource: https://github.com/SecondMouseAU/SwiftDWG
 tags: [dwg, autocad, 2d, import, drawing, swift]
 description: Native-Swift reader for DWG (AutoCAD's binary drawing format) into the SwiftDXF drawing model.
-timestamp: 2026-11-13
+timestamp: 2026-11-21
 ---
 
 # SwiftDWG
@@ -18,8 +18,9 @@ not clean-room: see `NOTICE.md`.
 
 - **Cluster:** kernel
 - **Depends on:** SwiftDXF (the drawing model)
-- **Feeds products:** DWG import for the OCCTSwift CAD I/O stack. OCCTSwiftIO's `DWGLoader` runs
-  an external converter today, and is meant to move to this package (OCCTSwiftIO#58).
+- **Feeds products:** DWG import for the OCCTSwift CAD I/O stack. OCCTSwiftIO reads DWG through
+  this package, in process, from 2.0.0-beta.6 (OCCTSwiftIO#63), in place of the `dwg2dxf`
+  converter it ran before.
 
 ## Components
 
