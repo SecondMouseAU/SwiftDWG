@@ -12,7 +12,11 @@ extension DXFGroups {
     /// Unlike `records(in:)` it keeps records that have no handle, and the order, so a test can ask
     /// which entities lie between a BLOCK record and its ENDBLK.
     static func sequence(in url: URL) throws -> [DXFSectionRecord] {
-        let text = try String(contentsOf: url, encoding: .utf8)
+        sequence(text: try String(contentsOf: url, encoding: .utf8))
+    }
+
+    /// The same records, from DXF text such as `DWG.dxfText` writes.
+    static func sequence(text: String) -> [DXFSectionRecord] {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }
