@@ -41,3 +41,14 @@ swiftlint lint --strict
 - Docs ship with the change (`okf/policies/docs-current.md`).
 - Correctness is shown against AutoCAD's own DXF export of the drawing, not against SwiftDWG's
   output.
+
+## Release
+
+Tags are `major.minor.patch`, with no leading `v`. Before tagging:
+
+1. Set `DWG.readerVersion` in `Sources/SwiftDWG/DWG+ReaderVersion.swift` to the new tag, and merge
+   that. It is the release's own version, which consumers record beside a drawing, so it must equal
+   the tag.
+2. Run `Scripts/check-reader-version.sh <tag>`. The `release-version` workflow runs the same check
+   on the pushed tag and goes red if it fails; delete the tag, fix the constant, and tag again.
+3. Update the README and the `okf/` pages in the same change (`okf/policies/docs-current.md`).
