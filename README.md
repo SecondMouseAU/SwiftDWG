@@ -47,6 +47,16 @@ let flat = try DWG.read(contentsOf: url, options: .init(expandBlocks: true))
 DWG.version(of: data)                            // .ac1032, the release it was saved as
 DWG.readerVersion                                // "0.2.0", the release of SwiftDWG that read it
 let dxf = try DWG.dxfText(data: data)            // the DXF text the drawing is read from
+
+// What the reader left out is in drawing.skipped and drawing.skippedByLayer, under names that say
+// why. DWG.SkippedKind tells them apart:
+for type in drawing.skipped.keys {
+    switch DWG.SkippedKind(typeName: type) {
+    case .notDecoded(let type)?: print("\(type): the reader does not decode it yet")
+    case .unreadable?, .unreadableObject?, .unreadableTableRecord?: print("\(type): damaged")
+    case nil: print("\(type): SwiftDXF does not model it")
+    }
+}
 ```
 
 `DWG.readerVersion` is this package's own release, equal to its git tag. Keep it beside a drawing
@@ -84,9 +94,6 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   writes DXF. SwiftDWG gives the vertices the DWG has.
 - **True colours.** An entity's true colour comes with the palette index AutoCAD chose. A layer's
   does not, so its index is the nearest in RGB, which AutoCAD picks differently now and then.
-- **Not decoded:** polyface and polygon meshes (skipped as `POLYFACE_MESH`, `POLYGON_MESH`).
-  Other entities SwiftDXF does not model (images, solids, tables) are tallied in `skipped` by
-  name, as for a DXF.
 - **Attributes** (`ATTRIB`, `ATTDEF`) are decoded for R14 to R2018 and written to the DXF text as
   AutoCAD writes them: an `INSERT` with group 66 set, its `ATTRIB` records, then its `SEQEND`; the
   `ATTDEF` records in their block. Every record equals AutoCAD's DXF group for group on the six
@@ -96,15 +103,32 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   `skipped`. Extended data is written as for any entity; the owner (group 330), the subclass
   markers (group 100) and the extension dictionary (group 102) are not written, as for the other
   entities.
+- **Not decoded:** polyface and polygon meshes, as well as every
+  other entity of a type the reader does not decode, such as a `VIEWPORT`, an `IMAGE`, a `3DSOLID`,
+  an `MLINE`, a `MESH` or a `MULTILEADER`. Each is counted, and none is written as a record of its
+  own type, which SwiftDXF would read as an entity with nothing in it where it models the type.
+  It is written as a marker named `NOT_DECODED_<type>` (`DWG.notDecodedPrefix`), so `skipped` has
+  `NOT_DECODED_VIEWPORT` where a DXF read has `VIEWPORT`. That keeps three things apart: a type the
+  DWG reader does not decode (`NOT_DECODED_`), a type the drawing model does not model (the plain
+  name, as for a DXF, for what the reader writes as itself), and a damaged file (`UNREADABLE_`).
+  The marker carries the entity's layer, so `skippedByLayer` counts it under the layer it is on, as
+  AutoCAD's DXF of the drawing does for the same entity. It has none, and is counted on layer `0`,
+  when the file's layer handle for it cannot be read, or the layer is lost.
 - **An entity that cannot be read** is left out, and counted among the skipped types as
-  `UNREADABLE_<type>`: in `skipped`, or in the block's `skippedByLayer` for an entity in a block.
-  One whose object cannot be opened, or that the file does not hold, has no type to name and is
-  counted as `UNREADABLE_OBJECT`. A 2D or 3D polyline with a vertex that cannot be read is counted
-  whole as `UNREADABLE_POLYLINE`, since one a point short is a different shape. So is a layer, line
-  type, text style, dimension style or block record, as `UNREADABLE_LAYER`, `UNREADABLE_LTYPE`,
-  `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`; entities on a lost layer
-  read as layer `0`. A control object of one of those tables that cannot be read stops the read
-  with a `DWG.Error`, as every record of its table is reached through it.
+  `UNREADABLE_<type>` (`DWG.unreadablePrefix`): in `skipped`, or in the block's `skippedByLayer` for
+  an entity in a block, on its layer when that was read before the entity failed. One whose object
+  cannot be opened, or that the file does not hold, has no type to name and is counted as
+  `UNREADABLE_OBJECT`, with no layer. A 2D or 3D polyline with a vertex that cannot be read is
+  counted whole as `UNREADABLE_POLYLINE`, since one a point short is a different shape. So is a
+  layer, line type, text style, dimension style or block record, as `UNREADABLE_LAYER`,
+  `UNREADABLE_LTYPE`, `UNREADABLE_STYLE`, `UNREADABLE_DIMSTYLE` or `UNREADABLE_BLOCK_RECORD`
+  (`DWG.unreadableTableTypes`); entities on a lost layer read as layer `0`. A control object of one
+  of those tables that cannot be read stops the read with a `DWG.Error`, as every record of its
+  table is reached through it.
+- **Naming what was left out.** The two prefixes, the table names and the names built from them are
+  exported as `DWG.SkippedKind`: `DWG.SkippedKind(typeName:)` classifies a key of `skipped` as
+  `.notDecoded`, `.unreadable`, `.unreadableObject` or `.unreadableTableRecord`, or `nil` for any
+  other. The reader writes its markers through the same type, so the two cannot differ.
 - **A corrupt file** ends in a `DWG.Error`, or in a drawing that counts what it lost; it is not
   meant to stop the process with a trap or to never return, and memory is bounded by the sizes the
   file declares. That is checked by inverting single bytes: in the committed drawings, every byte
