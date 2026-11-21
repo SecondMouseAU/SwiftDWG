@@ -59,7 +59,15 @@ extension ObjectReader {
             _ = try main.readBytes(size)
         }
         if version <= .ac1014 { try updateHandleReader() }
+        try readEntityMode(into: &common)
+        return common
+    }
 
+    /// Reads an entity's mode, owner, reactors and the neighbours in its block's chain.
+    ///
+    /// This is where an entity's own data starts after its handle, extended data and graphic.
+    /// An attribute that holds a multi-line text carries the same run for the text it embeds.
+    mutating func readEntityMode(into common: inout EntityCommon) throws {
         common.entityMode = try main.read2Bits()
         if common.entityMode == 0 { common.owner = try readOwnHandle() }
         try readReactors(into: &common.reactors, dictionary: &common.extensionDictionary)
@@ -76,12 +84,18 @@ extension ObjectReader {
                 common.next = try readOwnHandle()
             }
         }
-        return common
     }
 
     /// Reads the data every entity starts with, which ends where its own geometry begins.
     mutating func readEntityCommon() throws -> EntityCommon {
         var common = try readEntityCommonThroughLinks()
+        try readEntityProperties(into: &common)
+        return common
+    }
+
+    /// Reads the properties that follow the links: colour, line type scale, layer, line type,
+    /// visibility and line weight.
+    mutating func readEntityProperties(into common: inout EntityCommon) throws {
         var hasBookColor = false
         (common.color, common.transparency, hasBookColor, common.trueColorIndex) =
             try readEntityColor()
@@ -90,7 +104,7 @@ extension ObjectReader {
 
         guard version >= .ac1015 else {
             common.isInvisible = try main.readBitShort() & 1 == 1
-            return common
+            return
         }
 
         common.layer = try readHandle()
@@ -107,7 +121,6 @@ extension ObjectReader {
         }
         common.isInvisible = try main.readBitShort() & 1 == 1
         common.lineWeight = Int(try main.readByte())
-        return common
     }
 
     /// Reads an entity colour, and the transparency and book colour that can follow it.
