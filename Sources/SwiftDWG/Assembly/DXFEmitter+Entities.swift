@@ -80,6 +80,10 @@ extension DXFEmitter {
             writeLeader(leader, common: common, space: space)
         case .hatch(let hatch):
             writeHatch(hatch, common: common, space: space)
+        case .tolerance(let tolerance):
+            writeTolerance(tolerance, common: common, space: space)
+        case .wipeout(let wipeout):
+            writeWipeout(wipeout, common: common, space: space)
         case .vertex2D, .vertex3D, .seqend, .block, .endBlock:
             // Written with the polyline or block that owns them.
             return
