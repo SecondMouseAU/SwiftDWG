@@ -8,8 +8,6 @@ extension ObjectType {
             return found.dxfName
         }
         switch type {
-        case attrib: return "ATTRIB"
-        case attdef: return "ATTDEF"
         case vertexMesh, vertexPFace, vertexPFaceFace: return "VERTEX"
         case polylinePFace: return "POLYFACE_MESH"
         case polylineMesh: return "POLYGON_MESH"
@@ -37,6 +35,8 @@ extension ObjectType {
         case text: return "TEXT"
         case mtext: return "MTEXT"
         case insert, minsert: return "INSERT"
+        case attrib: return "ATTRIB"
+        case attdef: return "ATTDEF"
         case ellipse: return "ELLIPSE"
         case spline: return "SPLINE"
         case lwpolyline: return "LWPOLYLINE"

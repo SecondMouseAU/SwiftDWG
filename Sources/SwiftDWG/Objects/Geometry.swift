@@ -19,6 +19,7 @@ enum EntityGeometry {
     case text(TextData)
     case mtext(MTextData)
     case insert(InsertData)
+    case attribute(AttributeData)  // Attributes.swift
     case ellipse(EllipseData)
     case spline(SplineData)
     case lwpolyline(LWPolylineData)
@@ -130,6 +131,8 @@ extension ObjectReader {
         case ObjectType.mtext: return try readMText()
         case ObjectType.insert: return try readInsert()
         case ObjectType.minsert: return try readMInsert()
+        case ObjectType.attrib: return try readAttribute()
+        case ObjectType.attdef: return try readAttributeDefinition()
         case ObjectType.ellipse: return try readEllipse()
         case ObjectType.spline: return try readSpline()
         case ObjectType.lwpolyline: return try readLWPolyline()
