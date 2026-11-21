@@ -58,11 +58,10 @@ struct Document {
 
     /// A table record or a block that could not be read, so is not in the document.
     ///
-    /// The DXF text records each as a bare `UNREADABLE_<table>` entity, which SwiftDXF tallies in
-    /// `skipped`, so that a loss is counted and not silent.
+    /// The DXF text records each as an `UNREADABLE_<table>` marker (see `DWG.SkippedKind`), which
+    /// SwiftDXF tallies in `skipped`, so that a loss is counted and not silent.
     struct LostRecord: Equatable {
-        /// The DXF name of the table: `LAYER`, `LTYPE`, `STYLE`, `DIMSTYLE` or `BLOCK_RECORD`.
-        var table: String
+        var table: DWG.SkippedKind.Table
         var handle: UInt64
     }
 
@@ -119,7 +118,7 @@ struct Document {
     /// A record that cannot be read, or is not the kind the table holds, is left out and noted in
     /// `lostRecords`.
     private mutating func loadRecord<Value>(
-        _ handle: UInt64, in table: String, _ pick: (TableRecord) -> Value?
+        _ handle: UInt64, in table: DWG.SkippedKind.Table, _ pick: (TableRecord) -> Value?
     ) -> Value? {
         if let record = try? store.tableRecord(handle), let value = pick(record) { return value }
         lostRecords.append(LostRecord(table: table, handle: handle))
@@ -134,7 +133,7 @@ struct Document {
         let blockControl = try controlObject("BLOCK_CONTROL_OBJECT")
 
         for handle in listed(by: layerControl) {
-            guard let data = loadRecord(handle, in: "LAYER", \.asLayer) else { continue }
+            guard let data = loadRecord(handle, in: .layer, \.asLayer) else { continue }
             layers.append(Layer(handle: handle, data: data))
             layerNames[handle] = data.entry.name
         }
@@ -147,16 +146,16 @@ struct Document {
             }
         }
         for handle in lineTypeHandles {
-            guard let data = loadRecord(handle, in: "LTYPE", \.asLineType) else { continue }
+            guard let data = loadRecord(handle, in: .lineType, \.asLineType) else { continue }
             lineTypes.append(LineType(handle: handle, data: data))
             lineTypeNames[handle] = data.entry.name
         }
         for handle in listed(by: styleControl) {
-            guard let data = loadRecord(handle, in: "STYLE", \.asTextStyle) else { continue }
+            guard let data = loadRecord(handle, in: .textStyle, \.asTextStyle) else { continue }
             textStyleNames[handle] = data.entry.name
         }
         for handle in listed(by: dimensionStyleControl) {
-            guard let data = loadRecord(handle, in: "DIMSTYLE", \.asDimensionStyle) else {
+            guard let data = loadRecord(handle, in: .dimensionStyle, \.asDimensionStyle) else {
                 continue
             }
             dimensionStyles.append(DimensionStyle(handle: handle, data: data))
@@ -182,7 +181,7 @@ struct Document {
             handles.append(special)
         }
         for handle in handles {
-            guard let record = loadRecord(handle, in: "BLOCK_RECORD", \.asBlockHeader) else {
+            guard let record = loadRecord(handle, in: .blockRecord, \.asBlockHeader) else {
                 continue
             }
             let blockEntity = try? store.entity(record.blockEntity)

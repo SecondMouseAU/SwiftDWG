@@ -141,6 +141,11 @@ struct CurveObject {
     var main = CurveBitWriter()
     /// The entity's own handles, which follow the layer handle.
     var handles = CurveBitWriter()
+    /// The line type flags, from R2000 on, where 0 is by layer.
+    ///
+    /// With 3 the object states no line type handle, which a reader runs out of the object's
+    /// handles looking for.
+    var lineTypeFlags = 0
 
     init(_ version: DWG.Version, type: Int) {
         precondition(version != .ac1021 && version >= .ac1012)
@@ -183,7 +188,7 @@ struct CurveObject {
         }
         if version == .ac1015 { h.handle(0) }  // the extension dictionary
         h.handle(0x10)  // the layer
-        m.twoBits(0)  // line type by layer
+        m.twoBits(lineTypeFlags)  // line type by layer
         if version >= .ac1021 {
             m.twoBits(0)  // material by layer
             m.byte(0)  // shadow flags

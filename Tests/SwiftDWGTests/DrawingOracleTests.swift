@@ -61,6 +61,41 @@ enum DrawingOracle {
         return out
     }
 
+    /// A tally by type name, with the `NOT_DECODED_` that SwiftDWG puts before the type of an
+    /// entity it does not decode taken off, so that it can be compared with AutoCAD's.
+    static func withoutNotDecodedPrefix(_ tally: [String: Int]) -> [String: Int] {
+        var out: [String: Int] = [:]
+        for (name, count) in tally {
+            if case .notDecoded(let type)? = DWG.SkippedKind(typeName: name) {
+                out[type, default: 0] += count
+            } else {
+                out[name, default: 0] += count
+            }
+        }
+        return out
+    }
+
+    /// The counts of a drawing by the name of the field, without these.
+    ///
+    /// SwiftDXF 0.5 added `tolerance` and `wipeout` to the counts, so a test that is to build with
+    /// every release it allows reads the fields by name.
+    static func fields(_ counts: DXF.Drawing.Counts, without names: Set<String>) -> [String: Int] {
+        var out: [String: Int] = [:]
+        for child in Mirror(reflecting: counts).children {
+            if let label = child.label, !names.contains(label), let value = child.value as? Int {
+                out[label] = value
+            }
+        }
+        return out
+    }
+
+    /// How many TOLERANCE and WIPEOUT entities SwiftDXF models in this drawing: none before
+    /// SwiftDXF 0.5, which skipped them.
+    static func modelledToleranceAndWipeout(_ counts: DXF.Drawing.Counts) -> Int {
+        let byName = fields(counts, without: [])
+        return byName["tolerance", default: 0] + byName["wipeout", default: 0]
+    }
+
     static func compare(_ ours: DXF.Drawing, _ theirs: DXF.Drawing) -> Report {
         let a = entities(of: ours)
         let b = entities(of: theirs)
@@ -133,8 +168,13 @@ struct DrawingOracleTests {
             "\(release) \(report.differing)")
         #expect(report.differing.count <= 2, "\(release)")
         #expect(report.same + report.differing.count + report.oursOnly == 265 + 1, "\(release)")
-        // Handles the DXF export gave a different number, such as a table cell's block.
-        #expect(report.oursOnly <= 1 && report.theirsOnly <= 2, "\(release)")
+        // Handles the DXF export gave a different number, such as a table cell's block, and the
+        // TOLERANCEs and WIPEOUTs that SwiftDXF models (from 0.5) and SwiftDWG does not decode
+        // yet, which it counts as not decoded and does not write as an empty record.
+        let notDecodedYet =
+            DrawingOracle.modelledToleranceAndWipeout(theirs.counts)
+            - DrawingOracle.modelledToleranceAndWipeout(ours.counts)
+        #expect(report.oursOnly <= 1 && report.theirsOnly <= 2 + notDecodedYet, "\(release)")
     }
 
     @Test(
@@ -142,15 +182,31 @@ struct DrawingOracleTests {
         .enabled(if: Fixtures.corpus != nil), arguments: releases)
     func summary(release: String) throws {
         let (ours, theirs) = try Self.drawings(release)
-        var a = ours.counts
-        var b = theirs.counts
+        // TOLERANCE and WIPEOUT: SwiftDXF 0.5 and later model them, and SwiftDWG does not decode
+        // them yet, so they are counted as not decoded here and as entities there; before 0.5
+        // both skip them. Either way none is left out.
+        let undecoded = DrawingOracle.withoutNotDecodedPrefix(ours.skipped)
+        for type in ["TOLERANCE", "WIPEOUT"] {
+            let field = type.lowercased()
+            let here =
+                undecoded[type, default: 0]
+                + DrawingOracle.fields(ours.counts, without: [])[field, default: 0]
+            let there =
+                theirs.skipped[type, default: 0]
+                + DrawingOracle.fields(theirs.counts, without: [])[field, default: 0]
+            #expect(here == there, "\(release) \(type)")
+        }
         // The one polyface mesh is not decoded, so it is skipped here and a polyline there.
-        #expect(a.polyline + 1 == b.polyline, "\(release)")
-        a.polyline = 0
-        b.polyline = 0
-        #expect(a == b, "\(release)")
+        #expect(ours.counts.polyline + 1 == theirs.counts.polyline, "\(release)")
+        let apart: Set = ["polyline", "tolerance", "wipeout"]
+        #expect(
+            DrawingOracle.fields(ours.counts, without: apart)
+                == DrawingOracle.fields(theirs.counts, without: apart),
+            "\(release)")
         #expect(ours.insUnits == theirs.insUnits, "\(release)")
-        #expect(ours.paperSpace == theirs.paperSpace, "\(release)")
+        #expect(
+            DrawingOracle.withoutNotDecodedPrefix(ours.paperSpace) == theirs.paperSpace,
+            "\(release)")
         if let x = ours.extMin, let y = theirs.extMin {
             #expect(abs(x.x - y.x) < 1e-6 && abs(x.y - y.y) < 1e-6, "\(release)")
         } else {
@@ -158,9 +214,14 @@ struct DrawingOracleTests {
         }
         // The polyface mesh and its vertices are skipped by name. The attributes are written, so
         // they are counted as AutoCAD's are, in whichever way SwiftDXF counts them.
-        var skipped = ours.skipped
-        let expected = theirs.skipped
+        var skipped = DrawingOracle.withoutNotDecodedPrefix(ours.skipped)
+        var expected = theirs.skipped
         skipped["POLYFACE_MESH"] = nil
+        // TOLERANCE and WIPEOUT were compared above.
+        for type in ["TOLERANCE", "WIPEOUT"] {
+            skipped[type] = nil
+            expected[type] = nil
+        }
         #expect(skipped == expected, "\(release) \(skipped) \(expected)")
     }
 
