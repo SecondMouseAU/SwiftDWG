@@ -4,7 +4,7 @@ title: Components index
 resource: https://github.com/SecondMouseAU/SwiftDWG
 tags: [index]
 description: Public modules and API surfaces exposed by SwiftDWG.
-timestamp: 2026-11-21
+timestamp: 2026-11-22
 ---
 
 # Components
@@ -114,6 +114,23 @@ timestamp: 2026-11-21
   field by field with the R2000 sample's DXF through R14's hatches, by handle, in
   `ClassEntityTests`. The pattern lines of the DXF text are compared with AutoCAD's on R14 to R2018
   in `HatchTests`.
+- **TOLERANCE and WIPEOUT** (`Objects/Tolerance.swift`, `Objects/Wipeout.swift`,
+  `Assembly/DXFEmitter+Tolerance.swift`, `Assembly/DXFEmitter+Wipeout.swift`): `ToleranceData` (the
+  frame text of group 1, insertion point, direction, extrusion, dimension style handle; R13 and R14
+  keep three more values that DXF has no group for, which are skipped) and `WipeoutData` (class
+  version, insertion point, U and V vectors, image size, display flags, clipping state, brightness,
+  contrast, fade, the clip mode from R2010, the clip boundary type and its vertices, and the handles
+  of the image definition and its reactor). A WIPEOUT has no fixed type code: the file defines a
+  class of that name and its objects carry the class number, which `ObjectType.fixedCode(of:)`
+  turns into `ObjectType.wipeout`, a code of this reader's own that no file can hold. The emitter
+  leaves a tolerance's direction (11) and extrusion (210) out when they are the usual ones, as
+  AutoCAD does, and writes a polygonal clip boundary closed (the first vertex repeated and counted
+  in group 91), as AutoCAD does. Compared with AutoCAD's DXF by handle, group by group, on R2000 to
+  R2018 (three tolerances and one wipeout in each sample) in `ToleranceTests` and `WipeoutTests`,
+  and on the R14 sample against the R2000 DXF, which keeps their handles. Objects built by hand
+  cover every release, including the R2007 string stream and the clip mode of R2010 and later.
+  No sample has a tolerance with a direction or extrusion that is not the usual, or a wipeout with a
+  rectangular clip boundary, so those are checked only against objects built by hand.
 - **Table records** (`Objects/TableRecords.swift`, `Objects/Tables*.swift`): the symbol tables and
   what hangs off them, read by `ObjectStore.tableRecord(_:)`: the control object of each table (its
   entry handles), block records, layers, line types, text styles, dimension styles (every variable
