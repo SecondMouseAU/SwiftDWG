@@ -84,9 +84,18 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   writes DXF. SwiftDWG gives the vertices the DWG has.
 - **True colours.** An entity's true colour comes with the palette index AutoCAD chose. A layer's
   does not, so its index is the nearest in RGB, which AutoCAD picks differently now and then.
-- **Not decoded:** polyface and polygon meshes (skipped as `POLYFACE_MESH`, `POLYGON_MESH`), and
-  the attributes of an insert. Other entities SwiftDXF does not model (images, solids, tables) are
-  tallied in `skipped` by name, as for a DXF.
+- **Not decoded:** polyface and polygon meshes (skipped as `POLYFACE_MESH`, `POLYGON_MESH`).
+  Other entities SwiftDXF does not model (images, solids, tables) are tallied in `skipped` by
+  name, as for a DXF.
+- **Attributes** (`ATTRIB`, `ATTDEF`) are decoded for R14 to R2018 and written to the DXF text as
+  AutoCAD writes them: an `INSERT` with group 66 set, its `ATTRIB` records, then its `SEQEND`; the
+  `ATTDEF` records in their block. Every record equals AutoCAD's DXF group for group on the six
+  releases with a sample (R14 is compared with the R2000 export, field by field). A multi-line
+  attribute (R2018) is written with its embedded text after group 101, as AutoCAD does. What of
+  that SwiftDXF models is up to its version: 0.6.0 models attributes, 0.4.0 tallies them in
+  `skipped`. Extended data is written as for any entity; the owner (group 330), the subclass
+  markers (group 100) and the extension dictionary (group 102) are not written, as for the other
+  entities.
 - **An entity that cannot be read** is left out, and counted among the skipped types as
   `UNREADABLE_<type>`: in `skipped`, or in the block's `skippedByLayer` for an entity in a block.
   One whose object cannot be opened, or that the file does not hold, has no type to name and is
