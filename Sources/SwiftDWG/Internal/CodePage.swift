@@ -27,4 +27,19 @@ enum CodePage {
         default: return nil
         }
     }
+
+    /// The name DXF gives a code page in `$DWGCODEPAGE`, or `nil` when this package has none.
+    ///
+    /// Only the Windows pages that ``encoding(for:)`` reads are named, as `ANSI_` and the page's
+    /// number. The name for 30, `ANSI_1252`, is the one AutoCAD's own DXF has in every sample.
+    static func dxfName(for number: Int) -> String? {
+        switch number {
+        case 28: return "ANSI_1250"
+        case 29: return "ANSI_1251"
+        case 30: return "ANSI_1252"
+        case 32: return "ANSI_1253"
+        case 33: return "ANSI_1254"
+        default: return nil
+        }
+    }
 }

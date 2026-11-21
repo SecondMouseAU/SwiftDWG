@@ -130,6 +130,18 @@ timestamp: 2026-11-21
     pure function over closures, tested in `EntityChainTests` with made-up chains, and in
     `EntityChainRecoveryTests` on `sample_AC1015` (needs `DWG_CORPUS`). The entity type names the
     scan and the emitter share are in `Internal/ObjectType+Names.swift`.
+- **Header of the DXF text** (`Assembly/HeaderLayout.swift`, `Assembly/DXFEmitter+Header.swift`,
+  `Internal/TemplateSection.swift`, `Internal/ObjectStore+Names.swift`): `writeHeader()` writes every
+  variable `HeaderReader` decodes that AutoCAD's own DXF has, with its group codes and in its order.
+  `HeaderLayout.entries` is that order, read off AutoCAD's DXF of the corpus drawings; a variable
+  is written when the release stores it. A variable DXF gives as a name (`$CLAYER`, `$DIMSTYLE`,
+  `$CMLSTYLE`, `$DIMBLK`, the UCS names) is resolved from its handle through the tables in
+  `Document`, the multiline style dictionary, and the UCS table entry. `$MEASUREMENT` is read from
+  the `AcDb:Template` section, where the DWG keeps it, and `$DWGCODEPAGE` from the file header. The
+  variables decoded and not written, and the ones AutoCAD's DXF has that the DWG header does not,
+  are listed with their reasons in the README and in `HeaderTextTests`, which compares the text
+  with AutoCAD's DXF of 17 drawings by name, group codes, order and value, and fails if a decoded
+  variable is neither written nor listed.
 - **Colour and extended data** (`Internal/ColorIndex.swift`, `Internal/ExtendedData.swift`): the
   AutoCAD palette, used for the nearest index of a layer's true colour, and the decoder for the
   extended data an entity carries, which holds a dimension's style overrides.
