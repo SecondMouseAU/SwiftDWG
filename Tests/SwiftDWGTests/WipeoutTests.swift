@@ -283,9 +283,11 @@ struct WipeoutTests {
 
     // MARK: AutoCAD's DXF
 
-    @Test("the wipeout of every AutoCAD sample from R2000 to R2018 equals its DXF record")
+    @Test(
+        "the wipeout of every AutoCAD sample from R2000 to R2018 equals its DXF record",
+        .enabled(if: Fixtures.corpus != nil))
     func corpus() throws {
-        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS: skipped without it
+        let corpus = try #require(Fixtures.corpus)
         for name in Fixtures.corpusNamesOther + Fixtures.corpusNames {
             let data = try Data(contentsOf: corpus.appendingPathComponent("\(name).dwg"))
             let ours = DXFGroups.records(text: try DWG.dxfText(data: data))
@@ -301,9 +303,11 @@ struct WipeoutTests {
         }
     }
 
-    @Test("the wipeout of the R14 sample equals the R2000 DXF's, which keeps its handle")
+    @Test(
+        "the wipeout of the R14 sample equals the R2000 DXF's, which keeps its handle",
+        .enabled(if: Fixtures.corpus != nil))
     func corpusR14() throws {
-        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS
+        let corpus = try #require(Fixtures.corpus)
         // There is no DXF of the R14 file, but it is the same drawing as the R2000 one.
         let data = try Data(contentsOf: corpus.appendingPathComponent("sample_AC1014.dwg"))
         let ours = DXFGroups.records(text: try DWG.dxfText(data: data))
