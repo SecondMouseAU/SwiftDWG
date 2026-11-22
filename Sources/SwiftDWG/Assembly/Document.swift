@@ -79,9 +79,16 @@ struct Document {
         guard let section = try container.section("AcDb:Header") else {
             throw DWG.Error.invalid("the file has no header section")
         }
-        header = try HeaderReader.read(
+        var variables = try HeaderReader.read(
             section, version: container.version, maintenanceVersion: container.maintenanceVersion,
             codePage: container.codePage)
+        // `$MEASUREMENT` is in the template section, not in the header section.
+        if let template = try? container.section("AcDb:Template"),
+            let measurement = TemplateSection.measurement(template, version: container.version)
+        {
+            variables.values["$MEASUREMENT"] = .int(measurement)
+        }
+        header = variables
         try loadTables()
         try loadBlocks()
     }

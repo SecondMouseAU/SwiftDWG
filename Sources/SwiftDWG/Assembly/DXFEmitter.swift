@@ -31,39 +31,6 @@ struct DXFEmitter {
         return writer.finish()
     }
 
-    // MARK: HEADER
-
-    private mutating func writeHeader() {
-        let header = document.header
-        writer.beginSection("HEADER")
-        writer.group(9, "$ACADVER")
-        writer.group(1, document.version.code)
-        func integer(_ name: String) {
-            guard let value = header.int(name) else { return }
-            writer.group(9, name)
-            writer.group(70, value)
-        }
-        func point(_ name: String) {
-            guard let value = header.point3(name) else { return }
-            writer.group(9, name)
-            writer.point(10, DXF.Point(value.x, value.y, value.z))
-        }
-        integer("$INSUNITS")
-        point("$EXTMIN")
-        point("$EXTMAX")
-        integer("$DIMDEC")
-        integer("$DIMZIN")
-        if let scale = header.double("$DIMLFAC") {
-            writer.group(9, "$DIMLFAC")
-            writer.group(40, scale)
-        }
-        if let post = header.string("$DIMPOST") {
-            writer.group(9, "$DIMPOST")
-            writer.group(1, post)
-        }
-        writer.endSection()
-    }
-
     // MARK: TABLES
 
     private mutating func writeTables() {

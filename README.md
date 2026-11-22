@@ -115,6 +115,86 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
 - **Anonymous block names** keep their DWG numbers; AutoCAD's DXF renumbers them.
 - Performance has not been measured.
 
+## The header in `dxfText`
+
+The HEADER section of `DWG.dxfText` has the system variables a DWG stores, with the group codes
+and in the order of AutoCAD's own DXF: 196 variables for an R2000 drawing and 248 for an R2018 one.
+A variable that only some releases store is written for those releases only. A variable DXF writes
+as the name of an object (`$CLAYER`, `$TEXTSTYLE`, `$CELTYPE`, `$DIMSTYLE`, `$CMLSTYLE`,
+`$DIMTXSTY`, `$DIMBLK` and the others of the dimension style, the user coordinate systems) is
+written with the name of the object the file's handle points at. `DWG.read` therefore gives
+SwiftDXF the drawing's current dimension style and text style, `$DIMSCALE`, `$LUNITS`, `$LUPREC`
+and the rest.
+
+`$DWGCODEPAGE` comes from the file header, and is named for the Windows pages 1250 to 1254 only
+(`ANSI_1252` in every sample).
+
+`$MEASUREMENT` (0 English, 1 metric) is not in the header section of a DWG. The file keeps it in
+its `AcDb:Template` section, and SwiftDWG reads it from there, for every release. It is 0 in
+every drawing that has an AutoCAD DXF, so those do not show that a metric drawing reads as 1.
+`aec_objects/AecObjects.dwg` has no DXF, and reads as 1 with `$INSUNITS` 4 (millimetres), where
+`svg/export_sample.dwg`, also in millimetres, reads as 0: the value is read, and is a setting of
+its own, but it is not checked against AutoCAD for a metric drawing.
+
+Compared with AutoCAD's own DXF of 17 drawings (the six releases R2000 to R2018 of one drawing, ten
+dynamic block drawings, and a georeferenced drawing from another machine), every variable written
+is in AutoCAD's DXF, in the same order, with the same group codes, and the same value, with these
+exceptions, which a test (`HeaderTextTests`) pins:
+
+- **Drawings exported from another save.** The six releases of the sample drawing are AutoCAD's
+  export of the same save as each DWG, and are compared strictly. The ten dynamic block drawings
+  and the georeferenced one have a DXF from a copy that was edited or saved again, so for them the
+  variables an edit changes may differ: the extents, the times, the next handle and the drawing's
+  GUID. Every other variable is compared as for the rest.
+- **Reals.** AutoCAD prints a real with 16 significant digits, SwiftDWG with as many as the
+  double needs, so a few differ in the last digit of the text. They are compared as numbers with a
+  relative tolerance of 1e-15, which is the most that printing 16 digits can change. Times are
+  printed to 9 or 10 decimals of a day, and are compared to 1e-9 of a day.
+- **`$HANDSEED`, `$VERSIONGUID`, `$TDUUPDATE`, `$TDINDWG`, `$TDUSRTIMER`.** AutoCAD exported the
+  DXF after the DWG, so the next handle is higher, the last save and the two times it moves on are
+  about a second later, and the version GUID is a new one. SwiftDWG writes what the DWG holds.
+- **`$CECOLOR` of a true colour.** DXF has no place for the colour and writes the palette index
+  AutoCAD picked for it, 193 where the nearest in RGB is 181. SwiftDWG writes the nearest, as it
+  does for a layer. Dimension colours are indexes in the file and are exact.
+- **`$XCLIPFRAME` before R2010.** The R2004 and R2007 DWGs hold 2, a value the format only gave
+  meaning to in R2010, and AutoCAD's DXF of them has 0. SwiftDWG writes 0 for a value above 1 in
+  those releases. Only two drawings show this.
+- **`$CMLSTYLE`** is the name the style has in the multiline style dictionary (`Standard`), which
+  is what DXF writes, and not the name stored in the style (`STANDARD`).
+- **`$DIMBLK`, `$DIMBLK1`, `$DIMBLK2`, `$DIMLDRBLK`** name one of AutoCAD's own arrowheads
+  without the underscore of its block (`BoxBlank` for `_BoxBlank`), as DXF does.
+
+Decoded and not written, because AutoCAD's DXF does not write them (they live in the registry, or
+in the dimension style table) or because there is nothing to check them against:
+
+| Variables | Why |
+|---|---|
+| `$FACETRES`, `$ISOLINES`, `$PELLIPSE`, `$TEXTQLTY`, `$TSTACKALIGN`, `$TSTACKSIZE` | AutoCAD's DXF of every sample omits them |
+| `$DIMALTMZF`, `$DIMALTMZS`, `$DIMMZF`, `$DIMMZS` (R2010 and later) | dimension style variables, which DXF has in the DIMSTYLE table only |
+| `$DRAGVS` | null in every sample, where AutoCAD's DXF omits it; no sample has it set |
+| `$DIMFIT`, `$DIMUNIT`, `$DIMSAV`, `$DELOBJ`, `$PICKSTYLE` (R14) | there is no AutoCAD DXF of an R14 drawing to show they are written |
+
+In AutoCAD's DXF and not in the DWG's header section, so not written:
+
+| Variables | Why |
+|---|---|
+| `$ACADMAINTVER` | the file header's byte equals it in 4 of the 6 samples and not in R2000 and R2018, so it is not derived |
+| `$LASTSAVEDBY` | kept in the summary information section, which is not read |
+| `$TDCREATE`, `$TDUPDATE` (R2000 and later) | the DWG keeps the universal times (`$TDUCREATE`, `$TDUUPDATE`, written); DXF's local times add the exporting machine's offset |
+| `$REALWORLDSCALE` | the DWG has an unexplained bit where it sits, 1 in every sample, so the bit cannot be told from a constant |
+
+AutoCAD's DXF names its default visual styles in `$INTERFEREOBJVS` and `$INTERFEREVPVS` where a
+DWG's header has null handles (the georeferenced drawing). SwiftDWG writes the variable only when
+the handle is set. The handles that are not variables (the table control objects, the dictionaries
+and the built-in line types) belong to the TABLES and OBJECTS sections and are not in the header.
+
+What is not checked: a user coordinate system that is named (no sample has one, so `$UCSNAME` and
+the like are empty in every comparison), a drawing whose `$CEPSNTYPE` is 3 (its `$CPSNID` is not
+written), and R14, which has no AutoCAD DXF. The R14 header is checked for its order and its names
+against the R2000 and R12 DXF of the corpus, and the six variables R14 keeps and R2000 moved to the
+registry (`$DRAGMODE`, `$OSMODE`, `$BLIPMODE`, `$COORDS`, `$ATTDIA`, `$ATTREQ`) are placed where
+AutoCAD's R12 DXF has them.
+
 ## How it is checked
 
 Every drawing that is read is compared with AutoCAD's own DXF export of the same drawing, read by

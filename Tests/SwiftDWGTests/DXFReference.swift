@@ -41,7 +41,11 @@ struct DXFReference {
     func mlineStyle(_ name: String) -> UInt64? { mlineStyles[name.uppercased()] }
 
     init(contentsOf url: URL) throws {
-        let text = try String(contentsOf: url, encoding: .isoLatin1)
+        self.init(text: try String(contentsOf: url, encoding: .isoLatin1))
+    }
+
+    /// The same reference, from DXF text such as `DWG.dxfText` writes.
+    init(text: String) {
         let lines = text.replacingOccurrences(of: "\r", with: "").components(separatedBy: "\n")
         var tags = [Tag]()
         var index = 0
