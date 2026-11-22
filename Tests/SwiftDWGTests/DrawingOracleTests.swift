@@ -156,10 +156,10 @@ struct DrawingOracleTests {
         } else {
             Issue.record("\(release) has no extents")
         }
-        // ATTRIB is not written, and the polyface mesh and its vertices are skipped by name.
+        // The polyface mesh and its vertices are skipped by name. The attributes are written, so
+        // they are counted as AutoCAD's are, in whichever way SwiftDXF counts them.
         var skipped = ours.skipped
-        var expected = theirs.skipped
-        expected["ATTRIB"] = nil
+        let expected = theirs.skipped
         skipped["POLYFACE_MESH"] = nil
         #expect(skipped == expected, "\(release) \(skipped) \(expected)")
     }

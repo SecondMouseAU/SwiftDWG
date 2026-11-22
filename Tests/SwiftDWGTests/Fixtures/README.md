@@ -23,6 +23,12 @@ in the `DWG_CORPUS` folder: `FD-0123_ﾀ550形550-551.dwg`, an R14 railway vehic
 maintainer's own collection. It is third-party and is not committed. It has no DXF export, so its
 lightweight polylines and hatches are compared with what acadrust 0.6.8 reads from it.
 
+`AttributeTests` compares the ATTRIB and ATTDEF records, and the SEQEND of each INSERT, of the same
+files with the same DXF exports group for group, and the R14 sample with the R2000 export by handle.
+Every sample holds four attributes on two inserts and five definitions in two blocks, and R2018 a
+multi-line attribute and definition. No committed drawing has an attribute, so those tests need
+`DWG_CORPUS`.
+
 `TableOracleTests` compares the table records, control objects, dictionaries and layouts of the same
 files with the same DXF exports, by handle. AutoCAD creates some objects when it saves (round-trip
 dictionaries and the like) and numbers them differently in the DWG and the DXF, so a few objects

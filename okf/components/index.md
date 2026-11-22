@@ -68,11 +68,28 @@ timestamp: 2026-11-21
   `LINE`, `CIRCLE`, `ARC` and `POINT`.
 - **TEXT, MTEXT, INSERT, MINSERT** (`Objects/Text.swift`, `Objects/Insert.swift`,
   `Objects/TextSupport.swift`): `TextData`, `MTextData` and `InsertData` in the file's own terms
-  (radians, OCS, handles for the text style, block record, attributes and SEQEND). ATTRIB and
-  ATTDEF are not decoded; the insert keeps the handles assembly needs. `TextSupport.swift` holds
-  the CMC colour read and the count check. Checked against AutoCAD's DXF in `TextTests.swift` and
-  `InsertTests.swift`, and with constructed objects (`TextSupportTests.swift`) for the R13 to R2000
-  and R2007 layouts the container cannot read yet.
+  (radians, OCS, handles for the text style, block record, attributes and SEQEND). The insert
+  keeps the handles assembly needs. `TextSupport.swift` holds the CMC colour read and the count
+  check. Checked against AutoCAD's DXF in `TextTests.swift` and `InsertTests.swift`, and with
+  constructed objects (`TextSupportTests.swift`) for the R13 to R2000 and R2007 layouts the
+  container cannot read yet.
+- **ATTRIB and ATTDEF** (`Objects/Attributes.swift`, `Assembly/DXFEmitter+Attributes.swift`):
+  `AttributeData` is a `TextData` plus the tag, prompt (ATTDEF), flags, field length, position
+  lock (R2007), version byte (R2010) and, from R2018, the attribute type and the MTEXT a
+  multi-line attribute embeds. The embedded MTEXT is read from its entity mode on, with its
+  entity properties read and dropped (`readEntityMode(into:)`, `readEntityProperties(into:)` in
+  `EntityCommon.swift`, `readMTextFields()` in `Text.swift`), as ACadSharp's
+  `readCommonAttData` does. An ATTDEF is an entity of its block. An ATTRIB is owned by its
+  INSERT and is in no block's list of entities, in any release (checked on every sample), so it
+  is written only with its INSERT: the INSERT record gets group 66, the attributes follow, then
+  the SEQEND with its own layer. Before R2004 the INSERT names the first and the last attribute
+  and each names its neighbours, which `EntityChain` walks as it does for a block, so a damaged
+  attribute in the middle does not lose the ones after it. An attribute that cannot be read is
+  written as `UNREADABLE_ATTRIB` and the INSERT is still written; a definition that cannot be read
+  is `UNREADABLE_ATTDEF`. An ATTRIB that is reached as a block's own entity is not written there,
+  which no sample does. Compared with AutoCAD's DXF in `AttributeTests` group for group (needs
+  `DWG_CORPUS`: the committed drawings have no attribute), with constructed objects for every
+  release in `AttributeSupportTests`.
 - **Curves, polylines and surfaces** (`Objects/Curves.swift`, `Objects/Polylines.swift`,
   `Objects/Surfaces.swift`, `Objects/CurvesSupport.swift`): `ELLIPSE`, `SPLINE`, `LWPOLYLINE`, 2D
   and 3D `POLYLINE` with their `VERTEX` and `SEQEND`, `SOLID`, `TRACE` and `3DFACE`, in the file's

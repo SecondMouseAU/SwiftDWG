@@ -302,6 +302,14 @@ enum SyntheticEntities {
 
     static func text(_ spec: Text, version: DWG.Version) -> SyntheticObject {
         var object = SyntheticObject(version: version, type: ObjectType.text)
+        writeTextFields(spec, into: &object)
+        return object
+    }
+
+    /// Writes the fields of a TEXT that follow the entity's common data, which ATTRIB and ATTDEF
+    /// share.
+    static func writeTextFields(_ spec: Text, into object: inout SyntheticObject) {
+        let version = object.version
         let isDefaultNormal = spec.extrusion == (0, 0, 1)
         if version <= .ac1014 {
             object.main.bitDouble(spec.elevation)
@@ -320,7 +328,7 @@ enum SyntheticEntities {
             object.main.bitShort(spec.horizontal)
             object.main.bitShort(spec.vertical)
             object.handles.handle(spec.style)
-            return object
+            return
         }
         let flags = spec.flags
         object.main.byte(flags)
@@ -346,7 +354,6 @@ enum SyntheticEntities {
         if flags & 0x40 == 0 { object.main.bitShort(spec.horizontal) }
         if flags & 0x80 == 0 { object.main.bitShort(spec.vertical) }
         object.handles.handle(spec.style)
-        return object
     }
 
     struct MText {
@@ -361,6 +368,14 @@ enum SyntheticEntities {
 
     static func mtext(_ spec: MText, version: DWG.Version) -> SyntheticObject {
         var object = SyntheticObject(version: version, type: ObjectType.mtext)
+        writeMTextFields(spec, into: &object)
+        return object
+    }
+
+    /// Writes the fields of an MTEXT that follow the entity's common data, which a multi-line
+    /// attribute embeds.
+    static func writeMTextFields(_ spec: MText, into object: inout SyntheticObject) {
+        let version = object.version
         object.main.point(1, 2, 3)
         object.main.point(0, 0, 1)
         object.main.point(0, 1, 0)
@@ -416,7 +431,6 @@ enum SyntheticEntities {
                 }
             }
         }
-        return object
     }
 
     struct Insert {

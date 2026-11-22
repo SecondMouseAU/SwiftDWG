@@ -42,6 +42,10 @@ extension DXFEmitter {
             writeMText(text, common: common, space: space)
         case .insert(let insert):
             writeInsert(insert, common: common, space: space)
+        case .attribute(let attribute):
+            // An ATTRIB is written with the INSERT that owns it; an ATTDEF is a block's own entity.
+            guard attribute.isDefinition else { return }
+            writeAttribute(attribute, common: common, space: space)
         case .ellipse(let ellipse):
             writer.begin("ELLIPSE")
             writeCommon(common, space: space)
@@ -83,6 +87,9 @@ extension DXFEmitter {
         switch entity.geometry {
         case .polyline2D, .polyline3D: break  // their extended data follows their own record
         default: writeExtendedData(common)
+        }
+        if case .insert(let insert) = entity.geometry, insert.hasAttributes {
+            writeAttributes(of: insert, like: common, space: space)
         }
     }
 
@@ -160,6 +167,7 @@ extension DXFEmitter {
     private mutating func writeInsert(_ insert: InsertData, common: EntityCommon, space: Space) {
         writer.begin("INSERT")
         writeCommon(common, space: space)
+        if insert.hasAttributes { writer.group(66, 1) }
         writer.group(2, document.blockNames[insert.blockHeader] ?? "")
         writer.point(10, insert.insertion)
         if insert.xScale != 1 { writer.group(41, insert.xScale) }

@@ -166,6 +166,13 @@ extension ObjectReader {
 
     mutating func readMText() throws -> DecodedEntity {
         let common = try readEntityCommon()
+        return DecodedEntity(common: common, geometry: .mtext(try readMTextFields()))
+    }
+
+    /// Reads the fields of an MTEXT that follow the entity's common data.
+    ///
+    /// A multi-line attribute carries the same fields for the text it embeds.
+    mutating func readMTextFields() throws -> MTextData {
         var data = MTextData()
 
         data.insertion = DXF.Point(try main.read3BitDouble())
@@ -201,7 +208,7 @@ extension ObjectReader {
         }
 
         if version >= .ac1032 { try readMTextAnnotation(into: &data) }
-        return DecodedEntity(common: common, geometry: .mtext(data))
+        return data
     }
 
     /// Reads what R2018 adds after the background: whether the text is annotative and, when it
