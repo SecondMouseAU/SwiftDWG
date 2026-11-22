@@ -105,7 +105,7 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   entities.
 - **Not decoded:** polyface and polygon meshes, as well as every
   other entity of a type the reader does not decode, such as a `VIEWPORT`, an `IMAGE`, a `3DSOLID`,
-  an `MLINE`, a `MESH` or a `MULTILEADER`. Each is counted, and none is written as a record of its
+  an `MLINE`, a `MESH`, a `MULTILEADER` or a proxy entity (`ACAD_PROXY_ENTITY`). Each is counted, and none is written as a record of its
   own type, which SwiftDXF would read as an entity with nothing in it where it models the type.
   It is written as a marker named `NOT_DECODED_<type>` (`DWG.notDecodedPrefix`), so `skipped` has
   `NOT_DECODED_VIEWPORT` where a DXF read has `VIEWPORT`. That keeps three things apart: a type the

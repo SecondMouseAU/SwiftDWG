@@ -77,7 +77,7 @@ enum DrawingOracle {
 
     /// The counts of a drawing by the name of the field, without these.
     ///
-    /// SwiftDXF 0.5 added `tolerance` and `wipeout` to the counts, so a test that is to build with
+    /// SwiftDXF 0.6.0 added `tolerance` and `wipeout` to the counts, so a test that is to build with
     /// every release it allows reads the fields by name.
     static func fields(_ counts: DXF.Drawing.Counts, without names: Set<String>) -> [String: Int] {
         var out: [String: Int] = [:]
@@ -90,7 +90,7 @@ enum DrawingOracle {
     }
 
     /// How many TOLERANCE and WIPEOUT entities SwiftDXF models in this drawing: none before
-    /// SwiftDXF 0.5, which skipped them.
+    /// SwiftDXF 0.6.0, which skipped them.
     static func modelledToleranceAndWipeout(_ counts: DXF.Drawing.Counts) -> Int {
         let byName = fields(counts, without: [])
         return byName["tolerance", default: 0] + byName["wipeout", default: 0]
@@ -167,9 +167,11 @@ struct DrawingOracleTests {
             Set(report.differing.values).isSubset(of: ["leader", "spline"]),
             "\(release) \(report.differing)")
         #expect(report.differing.count <= 2, "\(release)")
-        #expect(report.same + report.differing.count + report.oursOnly == 265 + 1, "\(release)")
+        // 266 entities with SwiftDXF 0.4.0. A later SwiftDXF models more types (attributes,
+        // TOLERANCE, WIPEOUT), so the total can only be more, and one that is less lost an entity.
+        #expect(report.same + report.differing.count + report.oursOnly >= 265 + 1, "\(release)")
         // Handles the DXF export gave a different number, such as a table cell's block, and the
-        // TOLERANCEs and WIPEOUTs that SwiftDXF models (from 0.5) and SwiftDWG does not decode
+        // TOLERANCEs and WIPEOUTs that SwiftDXF models (from 0.6.0) and SwiftDWG does not decode
         // yet, which it counts as not decoded and does not write as an empty record.
         let notDecodedYet =
             DrawingOracle.modelledToleranceAndWipeout(theirs.counts)
@@ -182,8 +184,8 @@ struct DrawingOracleTests {
         .enabled(if: Fixtures.corpus != nil), arguments: releases)
     func summary(release: String) throws {
         let (ours, theirs) = try Self.drawings(release)
-        // TOLERANCE and WIPEOUT: SwiftDXF 0.5 and later model them, and SwiftDWG does not decode
-        // them yet, so they are counted as not decoded here and as entities there; before 0.5
+        // TOLERANCE and WIPEOUT: SwiftDXF 0.6.0 and later model them, and SwiftDWG does not decode
+        // them yet, so they are counted as not decoded here and as entities there; before 0.6.0
         // both skip them. Either way none is left out.
         let undecoded = DrawingOracle.withoutNotDecodedPrefix(ours.skipped)
         for type in ["TOLERANCE", "WIPEOUT"] {

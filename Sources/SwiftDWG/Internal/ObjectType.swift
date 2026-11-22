@@ -81,6 +81,9 @@ enum ObjectType {
     static let vbaProject = 0x51
     static let layout = 0x52
 
+    /// A proxy entity: one made by a program whose class this reader does not know, kept as it was.
+    static let proxyEntity = 0x1F2
+
     /// The first code that is a class number and not a fixed type.
     static let firstClass = 500
 }

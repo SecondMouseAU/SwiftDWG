@@ -161,6 +161,10 @@ struct CurveObject {
         let classic = version <= .ac1018
         if classic {
             m.bitShort(type)
+        } else if type >= 0x1F0 && type < 0x2F0 {
+            // A fixed type past 0x1F0 is a selector of 1 and the byte past it.
+            m.twoBits(1)
+            m.byte(type - 0x1F0)
         } else {
             m.twoBits(0)
             m.byte(type)

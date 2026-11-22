@@ -13,7 +13,7 @@ import Testing
 /// other than `0`.
 ///
 /// The checks through `DWG.read` and `skippedByLayer` were run under SwiftDXF 0.4.0 and under
-/// 0.6.0 and hold under both. 0.5 and later model TOLERANCE and WIPEOUT and 0.4.0 skips them,
+/// 0.6.0 and hold under both. 0.6.0 and later model TOLERANCE and WIPEOUT and 0.4.0 skips them,
 /// which does not change what is compared: the marker is not named as either type.
 @Suite("Skipped records")
 struct SkippedRecordTests {
@@ -222,6 +222,18 @@ struct SkippedRecordTests {
         let marker = try Self.record(in: try Self.text(adding: object))
         #expect(marker.type == "UNREADABLE_OBJECT")
         #expect(marker.first(8) == nil)
+    }
+
+    @Test("a proxy entity is a healthy entity that is not decoded, and is not counted as damage")
+    func proxyEntity() throws {
+        let text = try Self.text(adding: CurveObject(.ac1032, type: ObjectType.proxyEntity))
+        let marker = try Self.record(in: text)
+        #expect(marker.type == "NOT_DECODED_ACAD_PROXY_ENTITY")
+        #expect(marker.first(8) == "Walls")
+        #expect(DWG.SkippedKind(typeName: marker.type)?.isUnreadable == false)
+        // Nothing in a drawing that holds one is damaged.
+        let skipped = try DXF.read(text: text).skipped
+        #expect(skipped.keys.allSatisfy { DWG.SkippedKind(typeName: $0)?.isUnreadable != true })
     }
 
     // MARK: Against AutoCAD's DXF
