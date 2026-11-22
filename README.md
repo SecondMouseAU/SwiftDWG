@@ -45,8 +45,14 @@ drawing.layers, drawing.lineTypes, drawing.blocks, drawing.dimensionStyles
 let flat = try DWG.read(contentsOf: url, options: .init(expandBlocks: true))
 
 DWG.version(of: data)                            // .ac1032, the release it was saved as
+DWG.readerVersion                                // "0.2.0", the release of SwiftDWG that read it
 let dxf = try DWG.dxfText(data: data)            // the DXF text the drawing is read from
 ```
+
+`DWG.readerVersion` is this package's own release, equal to its git tag. Keep it beside a drawing
+that was read, as a record of which release read it: two releases can read the same file
+differently, and a changed result can be traced to a changed reader only with it. The release
+process checks that it equals the tag.
 
 A DWG is read into DXF text, which SwiftDXF then reads, so a drawing from a DWG goes through the
 same code as one from a DXF: the same handling of extrusions, block references, paper space and

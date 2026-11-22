@@ -1,0 +1,28 @@
+name: release-version
+
+# `DWG.readerVersion` must equal the release tag, so that a consumer's record of which release read a
+# drawing is true. A constant cannot know its own tag, so the check runs where the tag exists: on
+# every push of a release tag (major.minor.patch, no leading v). It reads the constant from the
+# source text, so it needs no Swift toolchain and runs on the cheap runner.
+#
+# Not a pull request check on purpose: the constant is bumped in the change that prepares a release,
+# before the tag exists, and that pull request must stay green. The test in
+# Tests/SwiftDWGTests/ReaderVersionTests.swift covers the other half: the constant is never older
+# than the latest tag.
+#
+# A red run means the tag is on a commit whose constant is wrong. Delete the tag, fix the constant,
+# and tag again. `Scripts/check-reader-version.sh <tag>` runs the same check before tagging.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  reader-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: DWG.readerVersion equals the tag
+        run: Scripts/check-reader-version.sh "$GITHUB_REF_NAME"

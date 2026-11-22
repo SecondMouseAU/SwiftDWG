@@ -4,7 +4,7 @@ title: Components index
 resource: https://github.com/SecondMouseAU/SwiftDWG
 tags: [index]
 description: Public modules and API surfaces exposed by SwiftDWG.
-timestamp: 2026-11-18
+timestamp: 2026-11-21
 ---
 
 # Components
@@ -13,6 +13,15 @@ timestamp: 2026-11-18
   release it was saved as (`DWG.Version`, `AC1006` to `AC1032`), from its first bytes
   (`Version.swift`). Reading the drawing into a `DXF.Drawing` is planned; see the README status
   table.
+- **Reader version** (`DWG+ReaderVersion.swift`): `DWG.readerVersion`, a plain `major.minor.patch`
+  string equal to the release tag, for a consumer to keep beside a drawing as a record of which
+  release read it. It cannot know its own tag, so it is set by hand in the change that prepares a
+  release, and checked where the tag exists: the `release-version` workflow
+  (`.github/workflows/release-version.yml`) runs `Scripts/check-reader-version.sh <tag>` on every
+  release tag and fails if the two differ. `ReaderVersionTests` pins the format, runs the script,
+  and checks that the constant is never older than the latest tag in the checkout. It may be newer,
+  so the pull request that bumps it stays green. The 0.2.0 tag is from before the constant, so a
+  package resolved at 0.2.0 does not have it; the next release is the first that does.
 - **Bit reader** (`Internal/BitReader.swift`): the bit-coded values a DWG is made of, at any bit
   position (`BB`, `BS`, `BL`, `BLL`, `BD`, `DD`, `MC`, `MS`, handles, text), with a version-aware
   extrusion, thickness and text. Every read that runs past the end throws, never traps.
