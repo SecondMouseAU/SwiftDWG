@@ -259,11 +259,14 @@ struct WipeoutTests {
         let record = try Self.record(found.1)
         #expect(record.type == "WIPEOUT")
         // The line weight (370) is left out: a hand-made entity has it set to 0, not to the layer's.
-        #expect(
-            record.groups.map(\.code).filter { $0 != 370 } == [
-                5, 8, 90, 10, 20, 30, 11, 21, 31, 12, 22, 32, 13, 23, 340, 70, 280, 281, 282, 283,
-                290, 360, 71, 91,
-            ] + Array(repeating: [14, 24], count: 5).flatMap { $0 })
+        // Built in steps: the compiler of an older Xcode cannot type-check it as one expression.
+        let head: [Int] = [
+            5, 8, 90, 10, 20, 30, 11, 21, 31, 12, 22, 32, 13, 23, 340, 70, 280, 281, 282, 283,
+            290, 360, 71, 91,
+        ]
+        let vertices: [Int] = (0..<5).flatMap { _ in [14, 24] }
+        let codes: [Int] = record.groups.map(\.code).filter { $0 != 370 }
+        #expect(codes == head + vertices)
         #expect(record.int(91) == 5 && record.int(71) == 2)
         #expect(record.first(340) == "0" && record.first(360) == "2F")
         #expect(record.int(290) == 1 && record.int(280) == 1)
