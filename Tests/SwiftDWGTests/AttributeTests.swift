@@ -184,9 +184,11 @@ struct AttributeTests {
         #expect(ours.filter { $0.record.type == "ATTDEF" }.allSatisfy { $0.section == "BLOCKS" })
     }
 
-    @Test("R2018 writes the text a multi-line attribute and definition embed, as AutoCAD does")
+    @Test(
+        "R2018 writes the text a multi-line attribute and definition embed, as AutoCAD does",
+        .enabled(if: Fixtures.corpus != nil))
     func multiLine() throws {
-        guard let corpus = Fixtures.corpus else { return }  // needs DWG_CORPUS: skipped without it
+        let corpus = try #require(Fixtures.corpus)
         let ours = DXFGroups.records(text: try Self.text(of: "sample_AC1032", in: corpus))
         let attribute = try #require(ours[0x79D])
         #expect(attribute.all(101) == ["Embedded Object"])
