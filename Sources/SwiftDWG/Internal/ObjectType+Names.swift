@@ -21,6 +21,7 @@ extension ObjectType {
         case oleFrame, ole2Frame: return "OLE2FRAME"
         case tolerance: return "TOLERANCE"
         case mline: return "MLINE"
+        case proxyEntity: return "ACAD_PROXY_ENTITY"
         default: return nil
         }
     }

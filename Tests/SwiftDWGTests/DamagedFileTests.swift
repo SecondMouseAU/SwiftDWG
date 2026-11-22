@@ -165,12 +165,15 @@ struct DamagedFileTests {
             let intact = try Document(store: whole)
 
             var vertex: UInt64?
+            var owner: UInt64?
             for handle in intact.blocks.flatMap(\.entities) where vertex == nil {
                 switch (try? whole.entity(handle))?.geometry {
                 case .polyline2D(let polyline)?:
                     vertex = polyline.vertexHandles.first { $0 != 0 } ?? polyline.firstVertex
+                    owner = handle
                 case .polyline3D(let polyline)?:
                     vertex = polyline.vertexHandles.first { $0 != 0 } ?? polyline.firstVertex
+                    owner = handle
                 default: break
                 }
             }
@@ -187,6 +190,13 @@ struct DamagedFileTests {
             let after = damagedEmitter.text()
 
             #expect(Self.records("UNREADABLE_POLYLINE", in: after) == 1, "\(name)")
+            // The polyline is counted on the layer it was on, whole.
+            let polyline = try #require(owner)
+            let wasOn = DXFGroups.records(text: before)[polyline]
+            let isOn = DXFGroups.records(text: after)[polyline]
+            #expect(isOn?.type == "UNREADABLE_POLYLINE", "\(name)")
+            #expect(wasOn?.type == "POLYLINE" && wasOn?.first(8) != nil, "\(name)")
+            #expect(isOn?.first(8) == wasOn?.first(8), "\(name)")
             #expect(
                 Self.records("POLYLINE", in: after) == Self.records("POLYLINE", in: before) - 1,
                 "\(name)")
@@ -205,10 +215,11 @@ struct DamagedFileTests {
         let dimensionStyle = try #require(intact.dimensionStyles.last)
         let block = try #require(
             intact.blocks.last { $0.handle != intact.modelSpace && $0.handle != intact.paperSpace })
-        let lost: [(table: String, handle: UInt64)] = [
-            ("LAYER", layer.handle), ("LTYPE", lineType.handle), ("STYLE", textStyle),
-            ("DIMSTYLE", dimensionStyle.handle), ("BLOCK_RECORD", block.handle),
+        let lost: [(table: DWG.SkippedKind.Table, handle: UInt64)] = [
+            (.layer, layer.handle), (.lineType, lineType.handle), (.textStyle, textStyle),
+            (.dimensionStyle, dimensionStyle.handle), (.blockRecord, block.handle),
         ]
+        #expect(Set(lost.map(\.table)) == Set(DWG.SkippedKind.Table.allCases))
 
         for (table, handle) in lost {
             for store in [try Self.store(without: [handle]), try Self.store(overwriting: [handle])]
@@ -218,7 +229,12 @@ struct DamagedFileTests {
                     document.lostRecords == [Document.LostRecord(table: table, handle: handle)],
                     "\(table)")
                 let drawing = try Self.dxf(of: document)
-                #expect(drawing.skipped["UNREADABLE_\(table)"] == 1, "\(table) \(drawing.skipped)")
+                // The tally is under the exported name, which a consumer classifies as a lost
+                // record of that table.
+                let name = DWG.SkippedKind.unreadableTableRecord(table).typeName
+                #expect(name == "UNREADABLE_" + table.rawValue)
+                #expect(drawing.skipped[name] == 1, "\(table) \(drawing.skipped)")
+                #expect(DWG.SkippedKind(typeName: name) == .unreadableTableRecord(table))
             }
         }
 

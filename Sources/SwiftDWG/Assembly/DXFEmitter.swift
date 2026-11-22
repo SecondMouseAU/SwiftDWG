@@ -142,11 +142,7 @@ struct DXFEmitter {
         for block in document.blocks where block.handle == document.paperSpace {
             for handle in block.entities { writeEntity(handle, space: .paper) }
         }
-        // Table records and blocks that could not be read, so that SwiftDXF counts them.
-        for lost in document.lostRecords {
-            writer.begin("UNREADABLE_\(lost.table)")
-            writer.handle(5, lost.handle)
-        }
+        writeLostRecords()
         writer.endSection()
     }
 
@@ -165,44 +161,6 @@ struct DXFEmitter {
             // An entity that cannot be read is left out, and counted by what it was.
             writeUndecoded(handle, space: space, unreadable: true)
         }
-    }
-
-    /// Writes a record of the entity's type and nothing else, so that SwiftDXF tallies it among
-    /// the entities it does not model, as it does for a DXF.
-    ///
-    /// An object that cannot be opened at all, or that the file does not hold, has no type to
-    /// name, and is written as `UNREADABLE_OBJECT`.
-    private mutating func writeUndecoded(
-        _ handle: UInt64, space: Space, unreadable: Bool = false
-    ) {
-        let opened: ObjectReader?
-        do {
-            opened = try store.reader(for: handle)
-        } catch {
-            opened = nil
-        }
-        guard let reader = opened else {
-            writeBare("UNREADABLE_OBJECT", handle: handle, space: space)
-            return
-        }
-        // A type this reader decodes has a name only here: it never reaches the other list unless
-        // it failed to decode.
-        guard
-            let name = ObjectType.typeName(reader.type, classes: store.classes)
-                ?? (unreadable ? ObjectType.decodedTypeName(reader.type) : nil)
-        else {
-            // No name, and it failed to read: still counted, by what it is not.
-            if unreadable { writeBare("UNREADABLE_OBJECT", handle: handle, space: space) }
-            return
-        }
-        writeBare(unreadable ? "UNREADABLE_\(name)" : name, handle: handle, space: space)
-    }
-
-    /// A record of this type with a handle and nothing else.
-    mutating func writeBare(_ type: String, handle: UInt64, space: Space) {
-        writer.begin(type)
-        writer.handle(5, handle)
-        if space == .paper { writer.group(67, 1) }
     }
 
     /// The data every entity starts with, as groups.

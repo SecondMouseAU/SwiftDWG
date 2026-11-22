@@ -241,7 +241,9 @@ extension DXFEmitter {
         }
         // A polyline with a vertex missing is a different shape: it is counted, not written short.
         guard let found else {
-            writeBare("UNREADABLE_POLYLINE", handle: common.handle, space: space)
+            writeSkipped(
+                .unreadable(type: "POLYLINE"), handle: common.handle, space: space,
+                layer: common.layer)
             return
         }
         writer.begin("POLYLINE")
@@ -279,7 +281,9 @@ extension DXFEmitter {
             return nil
         }
         guard let found else {
-            writeBare("UNREADABLE_POLYLINE", handle: common.handle, space: space)
+            writeSkipped(
+                .unreadable(type: "POLYLINE"), handle: common.handle, space: space,
+                layer: common.layer)
             return
         }
         writer.begin("POLYLINE")

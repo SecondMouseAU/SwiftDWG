@@ -46,6 +46,12 @@ extension ObjectReader {
     /// where this stops.
     mutating func readEntityCommonThroughLinks() throws -> EntityCommon {
         var common = EntityCommon()
+        try readEntityCommonThroughLinks(into: &common)
+        return common
+    }
+
+    /// Reads the same, into `common`, which keeps what was read when a field cannot be.
+    mutating func readEntityCommonThroughLinks(into common: inout EntityCommon) throws {
         common.extendedData = try readCommonData()
         common.handle = handle
 
@@ -60,7 +66,6 @@ extension ObjectReader {
         }
         if version <= .ac1014 { try updateHandleReader() }
         try readEntityMode(into: &common)
-        return common
     }
 
     /// Reads an entity's mode, owner, reactors and the neighbours in its block's chain.
@@ -88,9 +93,18 @@ extension ObjectReader {
 
     /// Reads the data every entity starts with, which ends where its own geometry begins.
     mutating func readEntityCommon() throws -> EntityCommon {
-        var common = try readEntityCommonThroughLinks()
-        try readEntityProperties(into: &common)
+        var common = EntityCommon()
+        try readEntityCommon(into: &common)
         return common
+    }
+
+    /// Reads the same, into `common`, which keeps what was read when a field cannot be.
+    ///
+    /// A layer that is not 0 afterwards was read, whatever field after it failed. That is how an
+    /// entity that cannot be read is still counted on its layer.
+    mutating func readEntityCommon(into common: inout EntityCommon) throws {
+        try readEntityCommonThroughLinks(into: &common)
+        try readEntityProperties(into: &common)
     }
 
     /// Reads the properties that follow the links: colour, line type scale, layer, line type,

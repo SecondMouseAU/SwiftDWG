@@ -126,14 +126,35 @@ timestamp: 2026-11-21
   the table records, by handle, field by field. Objects that only one of the two files of a sample
   has are counted, and the entries among them are paired by name.
 - **Assembly** (`Assembly/Document.swift`, `Assembly/DXFEmitter.swift`,
-  `Assembly/DXFEmitter+Entities.swift`, `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
+  `Assembly/DXFEmitter+Entities.swift`, `Assembly/DXFEmitter+Skipped.swift`, `Read.swift`): `DWG.read(contentsOf:)` loads the header, the tables and the blocks into a
   `Document`, resolves every handle to the name a DXF uses, writes the DXF text with AutoCAD's own
   group codes, and hands it to SwiftDXF. `DWG.dxfText(data:)` returns that text. The comparison with
   AutoCAD's DXF is in `Tests/SwiftDWGTests/DrawingOracleTests.swift`. A table control object that
   cannot be read throws. A table record or block that cannot be read is kept in
   `Document.lostRecords`, and an entity, an object that cannot be opened or a polyline with a
   vertex that cannot be read is written as it is found: each as an `UNREADABLE_<type>` record, so
-  SwiftDXF counts it (`Tests/SwiftDWGTests/DamagedFileTests.swift`).
+  SwiftDXF counts it (`Tests/SwiftDWGTests/DamagedFileTests.swift`). An entity of a type no decoder
+  is written for is counted too, as `NOT_DECODED_<type>`: see the next item.
+  - **Skipped records** (`SkippedKind.swift`, `Assembly/DXFEmitter+Skipped.swift`): the public
+    `DWG.SkippedKind` is the one place the names of what the reader leaves out are made and taken
+    apart: `NOT_DECODED_<type>` (`DWG.notDecodedPrefix`) for an entity of a type no decoder reads,
+    `UNREADABLE_<type>` (`DWG.unreadablePrefix`) for damage, `UNREADABLE_OBJECT`, and
+    `UNREADABLE_<table>` for a lost table record (`DWG.unreadableTableTypes`: `LAYER`, `LTYPE`,
+    `STYLE`, `DIMSTYLE`, `BLOCK_RECORD`). The emitter writes every marker through
+    `DXFEmitter.writeSkipped`, which takes a `DWG.SkippedKind`, and a consumer classifies a key of
+    `DXF.Drawing.skipped` with `DWG.SkippedKind(typeName:)`, so the two cannot drift. A marker is
+    never named as a type SwiftDXF models: an empty `TOLERANCE` or `WIPEOUT` record is read by
+    SwiftDXF as an entity with nothing in it, so what is not decoded gets its own name. Which
+    types are not decoded is `ObjectType.typeName(_:classes:)` (`Internal/ObjectType+Names.swift`):
+    a type that gets a decoder moves to `ObjectType.decodedTypeName(_:)` and is then no longer
+    counted. A marker carries the entity's layer (group 8), read by
+    `ObjectReader.readEntityCommon(into:)` without decoding the entity, so SwiftDXF's
+    `skippedByLayer` counts it where AutoCAD's DXF does. `readEntityCommon(into:)` keeps what it
+    read when a field fails, so an entity that fails part way is counted on its layer if that was
+    read; with no layer read, the marker has none. Checked against AutoCAD's DXF for the six
+    samples with one, handle by handle, and by SwiftDXF's `skippedByLayer` for the entities of
+    types that SwiftDXF skips (`Tests/SwiftDWGTests/SkippedRecordTests.swift`); hand-built objects
+    reach the failures after the layer and before it.
   - **The entities of a block before R2004** (`Assembly/EntityChain.swift`,
     `Assembly/EntityChain+Store.swift`): `AC1012` to `AC1015` blocks name their first and last
     entity and each entity names its neighbours, so `EntityChain.entities` walks the links
