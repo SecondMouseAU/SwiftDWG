@@ -273,11 +273,12 @@ struct SkippedRecordTests {
             #expect(record.first(8) == expected.first(8), "\(release) \(type) \(handle)")
             layers[expected.first(8) ?? "none", default: 0] += 1
         }
-        // The sample holds 46 entities of types SwiftDWG does not decode, 42 on layer 0 and four
+        // The sample holds 41 entities of types SwiftDWG does not decode, 37 on layer 0 and four
         // on three others: a MESH, an ACAD_TABLE and two MLINEs. The 3 TOLERANCEs and the WIPEOUT
-        // are among them until a decoder is written for those types, and are on layer 0.
-        #expect(markers >= 42, "\(release) \(markers)")
-        #expect(layers["0"] ?? 0 >= 38 && layers.count == 4, "\(release) \(layers)")
+        // are among them until a decoder is written for those types, and are on layer 0. (It also
+        // holds 5 ATTDEFs, on layer 0, which are decoded and so are not among them.)
+        #expect(markers == 41, "\(release) \(markers)")
+        #expect(layers["0"] == 37 && layers.count == 4, "\(release) \(layers)")
         #expect(
             layers["Layer_true_color"] == 2 && layers["Layer_color_80"] == 1
                 && layers["Layer1"] == 1, "\(release) \(layers)")

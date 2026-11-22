@@ -14,7 +14,13 @@ extension DXFEmitter {
                 writeAttribute(attribute, common: entity.common, space: space)
                 writeExtendedData(entity.common)
             } else {
-                writeBare("UNREADABLE_ATTRIB", handle: handle, space: space)
+                // Counted as an attribute, on its layer when that can be read.
+                var lost = EntityCommon()
+                if var reader = try? store.reader(for: handle) {
+                    _ = try? reader.readEntityCommon(into: &lost)
+                }
+                writeSkipped(
+                    .unreadable(type: "ATTRIB"), handle: handle, space: space, layer: lost.layer)
             }
         }
         writeAttributesEnd(insert.seqend, like: common, space: space)
