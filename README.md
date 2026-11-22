@@ -114,6 +114,11 @@ What is not the same as AutoCAD's DXF, each of which a test pins:
   The marker carries the entity's layer, so `skippedByLayer` counts it under the layer it is on, as
   AutoCAD's DXF of the drawing does for the same entity. It has none, and is counted on layer `0`,
   when the file's layer handle for it cannot be read, or the layer is lost.
+- **TOLERANCE and WIPEOUT** are decoded, from R14 to R2018, and written to the DXF text with the
+  groups AutoCAD's DXF has for them. SwiftDXF models them from 0.6.0; an earlier SwiftDXF tallies
+  them in `skipped`, as for any entity it does not model. The text of a tolerance is the frame as
+  AutoCAD writes it (`{\Fgdt;i}%%v0.012%%v%%vB`). The masked area of a wipeout is its clip boundary,
+  in pixels of the image rectangle the file keeps it in.
 - **An entity that cannot be read** is left out, and counted among the skipped types as
   `UNREADABLE_<type>` (`DWG.unreadablePrefix`): in `skipped`, or in the block's `skippedByLayer` for
   an entity in a block, on its layer when that was read before the entity failed. One whose object

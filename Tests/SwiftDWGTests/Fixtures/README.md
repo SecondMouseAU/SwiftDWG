@@ -34,3 +34,8 @@ files with the same DXF exports, by handle. AutoCAD creates some objects when it
 dictionaries and the like) and numbers them differently in the DWG and the DXF, so a few objects
 exist under a handle in only one of the two files. The test pins how many, and pairs the table
 entries among them by name.
+
+`ToleranceTests` and `WipeoutTests` compare the TOLERANCE and WIPEOUT records of `DWG.dxfText` with
+the same DXF exports, group by group: the three tolerances and the one wipeout of each of the six
+`sample_AC10xx.dwg` files from R2000 to R2018, and, for the R14 file, the ones in the R2000 DXF.
+The committed fixtures hold neither type.

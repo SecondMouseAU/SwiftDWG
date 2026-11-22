@@ -229,8 +229,17 @@ struct SyntheticObject {
     func bytes() -> [UInt8] {
         var head = BitWriter()
         if version >= .ac1024 {
-            head.bits(0, 2)
-            head.byte(UInt8(type))
+            // A byte, a byte past 0x1F0 (the numbers of a file's classes, at first), or a short.
+            if type < 0x1F0 {
+                head.bits(0, 2)
+                head.byte(UInt8(type))
+            } else if type < 0x1F0 + 0x100 {
+                head.bits(1, 2)
+                head.byte(UInt8(type - 0x1F0))
+            } else {
+                head.bits(2, 2)
+                head.rawShort(Int16(type))
+            }
         } else {
             head.bitShort(Int16(type))
         }

@@ -19,7 +19,6 @@ extension ObjectType {
         case ray: return "RAY"
         case xline: return "XLINE"
         case oleFrame, ole2Frame: return "OLE2FRAME"
-        case tolerance: return "TOLERANCE"
         case mline: return "MLINE"
         case proxyEntity: return "ACAD_PROXY_ENTITY"
         default: return nil
@@ -51,6 +50,8 @@ extension ObjectType {
             dimensionAngular2Line, dimensionRadius, dimensionDiameter:
             return "DIMENSION"
         case leader: return "LEADER"
+        case tolerance: return "TOLERANCE"
+        case wipeout: return "WIPEOUT"
         case hatch: return "HATCH"
         default: return nil
         }

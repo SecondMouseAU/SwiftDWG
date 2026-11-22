@@ -35,6 +35,8 @@ enum EntityGeometry {
     case dimension(DimensionData)
     case leader(LeaderData)
     case hatch(HatchData)
+    case tolerance(ToleranceData)
+    case wipeout(WipeoutData)
 }
 
 /// An entity read from the file: what every entity has, and its geometry.
@@ -152,6 +154,8 @@ extension ObjectReader {
             return try readDimension()
         case ObjectType.leader: return try readLeader()
         case ObjectType.hatch: return try readHatch()
+        case ObjectType.tolerance: return try readTolerance()
+        case ObjectType.wipeout: return try readWipeout()
         default: return nil
         }
     }
