@@ -5,9 +5,9 @@ model as [SwiftDXF](https://github.com/SecondMouseAU/SwiftDXF): entities with la
 identity for each (its handle), blocks and tables. No binary, no subprocess, no C or Rust
 dependency, so it builds wherever Swift does.
 
-> **Status: 0.1.0, the first release.** `DWG.read` returns the drawing for R2000 to R2018 files and
-> matches AutoCAD's own DXF export of the same drawings on the six releases that have a sample.
-> The [limits](#limits) below are real. Try it on your own files before relying on it.
+> **Status: 0.2.0.** `DWG.read` returns the drawing for R14 to R2018 files and matches AutoCAD's
+> own DXF export of the same drawings on every release that has one to compare (R14 does not, see
+> the [status](#status) table). The [limits](#limits) below are real. Try it on your own files before relying on it.
 
 ## Why
 
@@ -20,7 +20,7 @@ gap, with the same shape: one import, one model.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/SecondMouseAU/SwiftDWG.git", from: "0.1.0")
+    .package(url: "https://github.com/SecondMouseAU/SwiftDWG.git", from: "0.2.0")
 ],
 targets: [
     .target(name: "YourTarget", dependencies: [.product(name: "SwiftDWG", package: "SwiftDWG")])
